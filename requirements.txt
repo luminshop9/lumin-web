@@ -1,4 +1,4 @@
-Flask==2.3.3
+Flask[async]==2.3.3
 python-telegram-bot==21.10
 gspread==6.1.2
 google-auth==2.32.0
