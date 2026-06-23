@@ -16,7 +16,7 @@ import unicodedata
 import logging
 import asyncio
 import difflib
-import threading          # <--- NUEVO
+import threading
 from datetime import datetime, date, timedelta
 from typing import List, Dict, Optional, Tuple, Any
 from collections import defaultdict
@@ -24,7 +24,7 @@ from collections import defaultdict
 import gspread
 from google.oauth2.service_account import Credentials
 from groq import Groq
-from flask import Flask   # <--- NUEVO
+from flask import Flask
 
 from telegram import Update
 from telegram.ext import (
@@ -259,7 +259,6 @@ def _tokens_de_producto(p, eliminar_stopwords=True):
 
 
 def buscar_producto(query, productos, umbral=0.6):
-    # CORRECCION 1: Alias exacto primero (case-insensitive)
     query_norm = normalizar(query)
     for p in productos:
         alias = p.get("Alias", "")
@@ -277,11 +276,9 @@ def buscar_producto(query, productos, umbral=0.6):
     puntajes.sort(key=lambda x: x[0], reverse=True)
     mejor_score, _ = puntajes[0]
 
-    # CORRECCION 3: umbral por defecto subido a 0.7
     if mejor_score < umbral:
         return "no_encontrado", None
 
-    # CORRECCION 2: UMBRAL_MULTIPLE bajado a 0.35
     UMBRAL_MULTIPLE = 0.35
     candidatos_top = [p for score, p in puntajes if score >= UMBRAL_MULTIPLE]
 
@@ -817,8 +814,6 @@ def extraer_nombre_producto(texto_normalizado, palabras_a_quitar):
     return " ".join(resultado).strip()
 
 
-# CORRECCION 9 (+ coma decimal): Mejorar parsear_compra para extraer nombre con numeros sueltos
-
 def parsear_compra(texto_normalizado):
     resto = quitar_palabras_intencion(texto_normalizado, INTENCIONES["compra"])
 
@@ -828,12 +823,9 @@ def parsear_compra(texto_normalizado):
         forzar_nuevo = True
         resto = m_marca.group(2).strip()
 
-    # Detectar c<numero> y v<numero> como etiquetas explicitas en todo el texto
-    # CORRECCION COMA DECIMAL: acepta coma o punto como separador decimal
     costo = None
     precio_venta = None
     
-    # Buscar c<numero> y v<numero> en todo el texto (acepta coma o punto decimal)
     m_c = re.search(r'\bc[:\-]?\s*(\d+(?:[.,]\d+)?)', resto, re.IGNORECASE)
     m_v = re.search(r'\bv[:\-]?\s*(\d+(?:[.,]\d+)?)', resto, re.IGNORECASE)
     if m_c:
@@ -841,8 +833,6 @@ def parsear_compra(texto_normalizado):
     if m_v:
         precio_venta = parse_decimal(m_v.group(1))
     
-    # Eliminar las etiquetas c<numero> y v<numero> del texto para extraer el nombre
-    # CORRECCION COMA DECIMAL: regex acepta coma o punto
     resto_sin_cv = re.sub(r'\b[cv][:\-]?\s*\d+(?:[.,]\d+)?', '', resto, flags=re.IGNORECASE)
     resto_sin_cv = re.sub(r'\s+', ' ', resto_sin_cv).strip()
 
@@ -863,12 +853,10 @@ def parsear_compra(texto_normalizado):
     if not nombre:
         return None
 
-    # Si no se detectaron c/v explicitas, buscar numeros sueltos
     sueltos = []
     if costo is None or precio_venta is None:
         for seg in partes[1:]:
             seg_l = seg.lower().strip()
-            # CORRECCION COMA DECIMAL: acepta coma o punto en etiquetas c/v
             m_tag = re.match(r"^([cv])\s*[:\-]?\s*(\d+(?:[.,]\d+)?)$", seg_l)
             if m_tag:
                 valor = parse_decimal(m_tag.group(2))
@@ -1053,7 +1041,6 @@ def manejar_compra(texto_norm, usuario_nombre, chat_id):
                 formatear_lista_productos(resultado) +
                 "\n\nEscribe el numero del producto que quieres.")
 
-    # CORRECCION 7: Crear producto automaticamente sin "n" cuando se da costo y precio
     if estado == "no_encontrado":
         if costo is not None and precio_venta is not None:
             nuevo = crear_producto(nombre_producto, costo, cantidad, precio_venta, usuario_nombre)
@@ -1065,7 +1052,6 @@ def manejar_compra(texto_norm, usuario_nombre, chat_id):
         if costo is None:
             return (f"'{nombre_producto}' no existe todavia. Dime el costo para crearlo: "
                     f"'compre {cantidad} {nombre_producto}, c<costo>' o agrega 'nuevo' si ya existe algo parecido.")
-        # costo existe pero precio_venta es None -> crear con precio sugerido
         nuevo = crear_producto(nombre_producto, costo, cantidad, None, usuario_nombre)
         registrar_movimiento(nuevo["SKU"], "compra", cantidad, costo, usuario_nombre, "producto nuevo")
         registrar_compra(nuevo["SKU"], cantidad, costo, usuario_nombre)
@@ -1121,10 +1107,7 @@ def _vender_un_item(producto, cantidad, precio_real, usuario_nombre):
     return linea, ganancia
 
 
-# CORRECCION 4: Funciones auxiliares para seleccion individual en ventas y proformas
-
 async def procesar_venta_seleccionada(update, context, producto, args):
-    """Callback cuando el usuario selecciona un producto de una lista ambigua en venta."""
     usuario_nombre = args[0]
     item = args[1]
     chat_id = update.effective_chat.id
@@ -1143,7 +1126,6 @@ async def procesar_venta_seleccionada(update, context, producto, args):
 
 
 async def _continuar_venta_pendiente(update, context, chat_id, usuario_nombre):
-    """Continua procesando la cola de items de venta pendientes."""
     if chat_id not in CONTEXTO_SELECCION or "cola_venta" not in CONTEXTO_SELECCION[chat_id]:
         if chat_id in CONTEXTO_SELECCION and "resultados_venta" in CONTEXTO_SELECCION[chat_id]:
             resultados = CONTEXTO_SELECCION[chat_id]["resultados_venta"]
@@ -1173,7 +1155,6 @@ async def _continuar_venta_pendiente(update, context, chat_id, usuario_nombre):
     nombre_limpio = limpiar_nombre_completo(item["nombre"])
     productos = leer_inventario()
     
-    # CORRECCION 5: Mejorar busqueda de "codo" en ventas
     estado, resultado = buscar_producto(nombre_limpio, productos, umbral=0.7)
     
     if estado == "no_encontrado":
@@ -1234,7 +1215,6 @@ def manejar_venta(texto_norm, usuario_nombre, chat_id):
     for item in items:
         nombre_limpio = limpiar_nombre_completo(item["nombre"])
         
-        # CORRECCION 5: Mejorar busqueda de "codo" en ventas
         estado, resultado = buscar_producto(nombre_limpio, productos, umbral=0.7)
         
         if estado == "no_encontrado":
@@ -1381,10 +1361,7 @@ def manejar_proforma(texto_norm, usuario_nombre, chat_id):
     return _crear_proforma(items_pedidos, usuario_nombre, chat_id)
 
 
-# CORRECCION 4: Funciones auxiliares para proforma con seleccion individual
-
 async def procesar_proforma_seleccionada(update, context, producto, args):
-    """Callback cuando el usuario selecciona un producto de una lista ambigua en proforma."""
     chat_id = update.effective_chat.id
     item = args[0]
     items_pedidos = args[1]
@@ -1407,7 +1384,6 @@ async def procesar_proforma_seleccionada(update, context, producto, args):
 
 async def _continuar_proforma_pendiente(update, context, chat_id, items_pedidos, usuario_nombre,
                                          items_json_acum, subtotal_acum, detalle_acum):
-    """Continua procesando la cola de items de proforma pendientes."""
     if not items_pedidos:
         if not items_json_acum:
             await update.message.reply_text("No pude armar la proforma. Revisa los nombres.", parse_mode=None)
@@ -1816,9 +1792,6 @@ def manejar_alias(texto_original, usuario_nombre):
     return f"✅ Alias actualizado: {producto['Nombre_completo']} -> alias: `{nuevo_alias_norm}`"
 
 
-# CORRECCION 8 (+ coma decimal): Mejorar manejar_actualizar para aceptar orden de palabras variable
-# y formatos c<valor> y v<valor> (acepta coma o punto como separador decimal)
-
 def manejar_actualizar(texto_norm, usuario_nombre, chat_id):
     if re.search(r"\bprecio\b", texto_norm):
         campo = "Precio_venta_actual"
@@ -1829,7 +1802,6 @@ def manejar_actualizar(texto_norm, usuario_nombre, chat_id):
     else:
         campo = "Precio_venta_actual"
     
-    # Extraer c<valor> y v<valor> explicitos (acepta coma o punto decimal)
     costo_explicito = None
     precio_explicito = None
     m_c = re.search(r'\bc[:\-]?\s*(\d+(?:[.,]\d+)?)', texto_norm, re.IGNORECASE)
@@ -1839,15 +1811,12 @@ def manejar_actualizar(texto_norm, usuario_nombre, chat_id):
     if m_v:
         precio_explicito = parse_decimal(m_v.group(1))
     
-    # Extraer numeros sueltos (excluyendo los ya capturados como c/v)
-    # CORRECCION COMA DECIMAL: regex acepta coma o punto
     texto_para_numeros = re.sub(r'\b[cv][:\-]?\s*\d+(?:[.,]\d+)?', '', texto_norm, flags=re.IGNORECASE)
     numeros = extraer_numeros(texto_para_numeros)
     
     if not numeros and costo_explicito is None and precio_explicito is None:
         return "Usa: 'actualizar arboles precio 12' o 'actualizar arboles precio 5 19' (costo y precio)."
 
-    # Extraer nombre del producto - eliminar c<valor> y v<valor> primero
     texto_sin_cv = re.sub(r'\b[cv][:\-]?\s*\d+(?:[.,]\d+)?', '', texto_norm, flags=re.IGNORECASE)
     texto_sin_cv = re.sub(r'\s+', ' ', texto_sin_cv).strip()
     palabras_extra = set(INTENCIONES["actualizar"]) | {"precio", "costo", "stock", "c", "v"}
@@ -2147,7 +2116,6 @@ async def handle_seleccion_numero(update: Update, context: ContextTypes.DEFAULT_
         if 0 <= idx < len(datos["productos"]):
             producto = datos["productos"][idx]
             await datos["callback"](update, context, producto, datos["args"])
-            # CORRECCION 4: No borrar CONTEXTO_SELECCION aqui para ventas/proformas con cola
             if "cola_venta" not in datos and "cola_proforma" not in datos:
                 del CONTEXTO_SELECCION[chat_id]
             return True
@@ -2157,9 +2125,8 @@ async def handle_seleccion_numero(update: Update, context: ContextTypes.DEFAULT_
 
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    log.info(f"Mensaje recibido de {update.effective_user.username}: {update.message.text}") # <-- Línea NUEVA
+    log.info(f"Mensaje recibido de {update.effective_user.username}: {update.message.text}")
     inicio = time.time()
-    # ... resto de tu código ...
     texto = update.message.text or ""
     usuario = update.effective_user
     usuario_nombre = usuario.username or usuario.first_name or "desconocido"
@@ -2201,25 +2168,21 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     texto_norm = normalizar(texto)
     intencion = detectar_intencion(texto_norm)
-    origen = "keywords"
 
     if intencion == "agregar":
         respuesta = await asyncio.to_thread(manejar_proforma, texto_norm, usuario_nombre, chat_id)
         await update.message.reply_text(respuesta, parse_mode=None)
         return
 
-    datos_groq = None
     if intencion is None:
         productos_rapido = await asyncio.to_thread(leer_inventario)
         estado_rapido, _ = buscar_producto(texto_norm, productos_rapido)
         if estado_rapido in ("ok", "multiple"):
             intencion = "precio"
-            origen = "match_directo"
 
     if intencion is None:
         datos_groq = await asyncio.to_thread(groq_interpretar, texto)
         intencion = datos_groq.get("intencion")
-        origen = "groq"
         if intencion == "desconocido" or not intencion:
             intencion = None
 
@@ -2328,7 +2291,6 @@ async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ============================================================
 # NUEVO BLOQUE: Servidor Flask + bot en hilo separado
 # ============================================================
-from flask import Flask   # ya lo importamos al principio, pero aquí se usa
 
 flask_app = Flask(__name__)
 
@@ -2345,25 +2307,24 @@ def run_flask():
     flask_app.run(host="0.0.0.0", port=port)
 
 def run_bot():
-    # Crear un nuevo event loop para este hilo
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     
-    # Construir la aplicación del bot
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler(["ayuda", "help"], cmd_ayuda))
     app.add_handler(CommandHandler("reset", cmd_reset))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # 🔥 NUEVA LÍNEA: Forzar eliminación del webhook
+    # 🔥 Forzar eliminación del webhook
     loop.run_until_complete(app.bot.delete_webhook(drop_pending_updates=True))
     
-    log.info("Bot iniciado. Esperando mensajes...")
+    log.info("✅ Bot iniciado. Esperando mensajes...")
     
-    # Iniciar el bot y mantenerlo corriendo
     loop.run_until_complete(app.initialize())
     loop.run_until_complete(app.start())
+    
+    log.info("🔄 Iniciando polling...")
     loop.run_forever()
 
 def main():
