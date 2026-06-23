@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Bot de Inventario Lumin - VERSIÓN WEBHOOK PARA RENDER
+Bot de Inventario Lumin - VERSIÓN WEBHOOK (CORREGIDA)
 Fecha: 2026-06-23
 """
 
@@ -1999,7 +1999,7 @@ async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     respuesta = await asyncio.to_thread(ejecutar_reset_mensual, usuario_nombre)
     await update.message.reply_text(respuesta, parse_mode=None)
 
-# ==================== WEBHOOK (NUEVO) ====================
+# ==================== WEBHOOK (CORREGIDO) ====================
 app = None  # Variable global para la aplicación de Telegram
 
 # ==================== FLASK ====================
@@ -2014,12 +2014,19 @@ def ping():
     return "pong", 200
 
 @flask_app.route('/webhook', methods=['POST'])
-async def webhook():
-    """Recibe los updates de Telegram vía webhook."""
+def webhook():
+    """Recibe los updates de Telegram vía webhook (síncrono)."""
     if request.method == 'POST':
         try:
-            update = Update.de_json(request.get_json(force=True), app.bot)
-            await app.process_update(update)
+            # Obtener el JSON del request
+            json_data = request.get_json(force=True)
+            # Crear el objeto Update
+            update = Update.de_json(json_data, app.bot)
+            # Procesar el update de forma síncrona usando el event loop existente
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(app.process_update(update))
+            loop.close()
             return 'OK', 200
         except Exception as e:
             log.error(f"Error en webhook: {e}")
@@ -2055,10 +2062,11 @@ def main():
     app.add_handler(CommandHandler("reset", cmd_reset))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # Configurar webhook
+    # Configurar webhook (usar el event loop)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     loop.run_until_complete(setup_webhook())
+    loop.close()
     
     # Iniciar Flask (el webhook recibe los mensajes)
     port = int(os.environ.get("PORT", 10000))
