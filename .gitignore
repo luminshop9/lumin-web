@@ -1,0 +1,4 @@
+.env
+creds_nuevo.json
+__pycache__/
+*.pyc
