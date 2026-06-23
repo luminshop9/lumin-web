@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Bot de Inventario Lumin - VERSIÓN DEFINITIVA v3
-Fecha: 2026-06-21
+Bot de Inventario Lumin - VERSIÓN WEBHOOK PARA RENDER
+Fecha: 2026-06-23
 """
 
 import os
 from dotenv import load_dotenv
-load_dotenv()   # Carga variables del archivo .env
+load_dotenv()
 import re
 import json
 import time
@@ -16,7 +16,6 @@ import unicodedata
 import logging
 import asyncio
 import difflib
-import threading
 from datetime import datetime, date, timedelta
 from typing import List, Dict, Optional, Tuple, Any
 from collections import defaultdict
@@ -24,19 +23,21 @@ from collections import defaultdict
 import gspread
 from google.oauth2.service_account import Credentials
 from groq import Groq
-from flask import Flask
+from flask import Flask, request, jsonify
 
 from telegram import Update
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, ContextTypes, filters
 )
 
+# ==================== CONFIGURACIÓN ====================
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID")
 CREDS_FILE = os.getenv("CREDS_FILE", "creds_nuevo.json")
 RESET_PASSWORD = os.getenv("RESET_PASSWORD")
 ACCESS_PASSWORD = os.getenv("ACCESS_PASSWORD")
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # ej: https://lumin-bot-deploy.onrender.com
 
 GROQ_MODEL = "llama-3.1-8b-instant"
 
@@ -46,6 +47,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("inventario_bot")
 
+# ==================== GOOGLE SHEETS ====================
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
@@ -62,15 +64,12 @@ USUARIOS_AUTENTICADOS = {}
 CONTEXTO_SELECCION = {}
 PROFORMAS_PENDIENTES = {}
 
-
 def ws(nombre_hoja):
     if nombre_hoja not in _WS_CACHE:
         _WS_CACHE[nombre_hoja] = spreadsheet.worksheet(nombre_hoja)
     return _WS_CACHE[nombre_hoja]
 
-
 EXCEL_EPOCH = datetime(1899, 12, 30)
-
 
 def serial_excel_a_datetime(serial):
     try:
@@ -83,11 +82,9 @@ def serial_excel_a_datetime(serial):
     except (ValueError, TypeError, OverflowError):
         return None
 
-
 def fecha_a_iso(fecha_valor):
     if fecha_valor is None or fecha_valor == "":
         return ""
-    
     if isinstance(fecha_valor, str):
         s = fecha_valor.strip()
         if len(s) >= 10 and s[4] == '-' and s[7] == '-':
@@ -101,22 +98,17 @@ def fecha_a_iso(fecha_valor):
             return serial_excel_a_datetime(float(s.replace(',', '.'))).strftime("%Y-%m-%d")
         except (ValueError, TypeError, AttributeError):
             return ""
-    
     if isinstance(fecha_valor, (int, float)):
         dt = serial_excel_a_datetime(fecha_valor)
         if dt:
             return dt.strftime("%Y-%m-%d")
         return ""
-    
     if isinstance(fecha_valor, datetime):
         return fecha_valor.strftime("%Y-%m-%d")
-    
     return ""
-
 
 def ahora_iso():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
 
 def parse_decimal(valor):
     if valor is None or valor == "":
@@ -142,10 +134,8 @@ def parse_decimal(valor):
     except ValueError:
         return 0.0
 
-
 def parse_int(valor):
     return int(round(parse_decimal(valor)))
-
 
 def normalizar(texto):
     if texto is None:
@@ -159,10 +149,8 @@ def normalizar(texto):
     texto = re.sub(r"\s+", " ", texto).strip()
     return texto
 
-
 def limpiar_segmento(texto):
     return texto.strip(" ,") if texto else ""
-
 
 def limpiar_nombre_completo(nombre):
     nombre = re.sub(r',\s*,', ',', nombre)
@@ -170,29 +158,23 @@ def limpiar_nombre_completo(nombre):
     nombre = re.sub(r'\s+', ' ', nombre).strip()
     return nombre
 
-
 def limpiar_nombre_creacion(texto):
     t = re.sub(r"\s+", " ", texto.strip(" ,"))
     return t.title()
-
 
 def singularizar(palabra):
     if len(palabra) > 3 and palabra.endswith("s"):
         return palabra[:-1]
     return palabra
 
-
 def fmt_money(valor):
     return f"S/{valor:,.2f}"
 
-
 FILLER_WORDS = {"estandar", "unidad", "unidades"}
-
 STOPWORDS = {
     "a", "de", "del", "el", "la", "los", "las", "un", "una", "al",
     "x", "s", "soles", "sol", "para", "que", "por", "y", "e",
 }
-
 
 def tokens_significativos(texto, eliminar_stopwords=True):
     crudos = normalizar(texto).split()
@@ -206,7 +188,6 @@ def tokens_significativos(texto, eliminar_stopwords=True):
         tokens.append(singularizar(t))
     return tokens
 
-
 try:
     from rapidfuzz import fuzz, process
     HAS_FUZZ = True
@@ -219,7 +200,6 @@ except ImportError:
     except ImportError:
         HAS_FUZZ = False
         log.warning("thefuzz/rapidfuzz no instalado. Usando difflib (mas lento)")
-
 
 def _mejor_score_token(token_query, tokens_candidato):
     mejor = 0.0
@@ -236,7 +216,6 @@ def _mejor_score_token(token_query, tokens_candidato):
             mejor = max(mejor, score)
     return mejor
 
-
 def _score_producto(tokens_query, tokens_candidato):
     if not tokens_query or not tokens_candidato:
         return 0.0
@@ -247,7 +226,6 @@ def _score_producto(tokens_query, tokens_candidato):
         return promedio * 0.25
     return promedio
 
-
 def _tokens_de_producto(p, eliminar_stopwords=True):
     candidatos_texto = [p["Nombre_base"], p["Nombre_completo"], p["SKU"]]
     if p.get("Alias"):
@@ -257,31 +235,24 @@ def _tokens_de_producto(p, eliminar_stopwords=True):
         tokens += tokens_significativos(c, eliminar_stopwords)
     return tokens
 
-
 def buscar_producto(query, productos, umbral=0.6):
     query_norm = normalizar(query)
     for p in productos:
         alias = p.get("Alias", "")
         if alias and normalizar(alias) == query_norm:
             return "ok", p
-    
     tokens_q = tokens_significativos(query, eliminar_stopwords=True)
     if not tokens_q:
         return "no_encontrado", None
-
     numeros_query = [t for t in tokens_q if t.isdigit() or re.match(r'\d+/\d+', t)]
-
     puntajes = [(_score_producto(tokens_q, _tokens_de_producto(p, eliminar_stopwords=True)), p)
                 for p in productos]
     puntajes.sort(key=lambda x: x[0], reverse=True)
     mejor_score, _ = puntajes[0]
-
     if mejor_score < umbral:
         return "no_encontrado", None
-
     UMBRAL_MULTIPLE = 0.35
     candidatos_top = [p for score, p in puntajes if score >= UMBRAL_MULTIPLE]
-
     if numeros_query:
         candidatos_filtrados = []
         for p in candidatos_top:
@@ -290,15 +261,11 @@ def buscar_producto(query, productos, umbral=0.6):
                 candidatos_filtrados.append(p)
         if candidatos_filtrados:
             candidatos_top = candidatos_filtrados
-
     candidatos_top = sorted(candidatos_top, key=lambda p: p["Precio_venta_actual"], reverse=True)
-
     skus_distintos = {p["SKU"] for p in candidatos_top}
     if len(skus_distintos) > 1:
         return "multiple", candidatos_top[:10]
-
     return "ok", candidatos_top[0] if candidatos_top else None
-
 
 def formatear_lista_productos(candidatos):
     lineas = []
@@ -316,7 +283,6 @@ def formatear_lista_productos(candidatos):
     lineas.append("💡 Copia el nombre o alias para usarlo en tus comandos.")
     return "\n".join(lineas)
 
-
 def generar_sku(nombre):
     base = re.sub(r"[^A-Za-z0-9]", "", nombre.upper())[:5] or "PROD"
     existentes = {p["SKU"] for p in leer_inventario()}
@@ -325,7 +291,6 @@ def generar_sku(nombre):
         sku = f"{base}-{sufijo}"
         if sku not in existentes:
             return sku
-
 
 COLS_INVENTARIO = [
     "SKU", "Nombre_base", "Variante", "Nombre_completo", "Categoria", "Categoria2",
@@ -339,14 +304,11 @@ NUMERIC_INVENTARIO = {
     "Stock_actual", "Stock_minimo", "Margen",
 }
 
-
 _CACHE_INVENTARIO = {"datos": None, "timestamp": 0.0}
 CACHE_INVENTARIO_TTL = 5
 
-
 def invalidar_cache_inventario():
     _CACHE_INVENTARIO["timestamp"] = 0.0
-
 
 def leer_inventario():
     ahora = time.time()
@@ -355,7 +317,6 @@ def leer_inventario():
         and (ahora - _CACHE_INVENTARIO["timestamp"]) < CACHE_INVENTARIO_TTL
     ):
         return _CACHE_INVENTARIO["datos"]
-
     hoja = ws("inventario")
     filas = hoja.get_all_values()
     productos = []
@@ -371,26 +332,21 @@ def leer_inventario():
                 d[col_nombre] = valor
         d["_row"] = i
         productos.append(d)
-
     _CACHE_INVENTARIO["datos"] = productos
     _CACHE_INVENTARIO["timestamp"] = ahora
     return productos
 
-
 def estado_stock(stock_actual, stock_minimo):
     return "OK" if stock_actual > stock_minimo else "Bajo"
-
 
 def actualizar_celda(hoja_nombre, fila, columna_nombre, valor):
     ws(hoja_nombre).update_cell(fila, COL_IDX[columna_nombre], valor)
     if hoja_nombre == "inventario":
         invalidar_cache_inventario()
 
-
 def generar_alias(nombre_base, productos_existentes):
     nombre_norm = normalizar(nombre_base)
     sin_espacios = nombre_norm.replace(" ", "")
-
     if len(sin_espacios) <= 8:
         alias_base = sin_espacios
     else:
@@ -404,24 +360,19 @@ def generar_alias(nombre_base, productos_existentes):
             else:
                 partes.append(p[:4] if len(palabras) <= 2 else p[:2])
         alias_base = "".join(partes)[:10] or sin_espacios[:10]
-
     if not alias_base:
         alias_base = "prod"
-
     alias_existentes = set()
     for p in productos_existentes:
         a = normalizar(p.get("Alias", ""))
         if a:
             alias_existentes.add(a)
-
     if alias_base not in alias_existentes:
         return alias_base
-
     contador = 2
     while f"{alias_base}{contador}" in alias_existentes:
         contador += 1
     return f"{alias_base}{contador}"
-
 
 def crear_producto(nombre, costo, stock_inicial, precio_venta=None, usuario=""):
     nombre = limpiar_nombre_creacion(nombre)
@@ -444,7 +395,6 @@ def crear_producto(nombre, costo, stock_inicial, precio_venta=None, usuario=""):
     invalidar_cache_inventario()
     return dict(zip(COLS_INVENTARIO, fila))
 
-
 def registrar_movimiento(sku, tipo, cantidad, precio_unitario, usuario, nota=""):
     fecha = ahora_iso()
     total = round(cantidad * precio_unitario, 2)
@@ -452,7 +402,6 @@ def registrar_movimiento(sku, tipo, cantidad, precio_unitario, usuario, nota="")
         [fecha, sku, tipo, cantidad, precio_unitario, total, "", usuario, nota],
         value_input_option="USER_ENTERED",
     )
-
 
 def registrar_compra(sku, cantidad, costo_unitario, usuario):
     fecha = ahora_iso()
@@ -462,7 +411,6 @@ def registrar_compra(sku, cantidad, costo_unitario, usuario):
         value_input_option="USER_ENTERED",
     )
 
-
 def registrar_venta_y_boleta(producto, cantidad, precio_real, usuario):
     fecha = ahora_iso()
     costo = producto["Costo"]
@@ -470,13 +418,11 @@ def registrar_venta_y_boleta(producto, cantidad, precio_real, usuario):
     ganancia_unidad = round(precio_real - costo, 2)
     ganancia_total = round(ganancia_unidad * cantidad, 2)
     id_boleta = int(time.time() * 1000) % 10_000_000
-
     ws("ventas").append_row(
         [fecha, id_boleta, producto["SKU"], producto["Nombre_completo"], cantidad,
          precio_real, costo, ganancia_unidad, ganancia_total, usuario],
         value_input_option="USER_ENTERED",
     )
-
     diferencia = round(precio_real - precio_sugerido, 2)
     tipo_diferencia = "extra" if diferencia > 0 else ("perdida" if diferencia < 0 else "normal")
     total_fila = round(precio_real * cantidad, 2)
@@ -485,7 +431,6 @@ def registrar_venta_y_boleta(producto, cantidad, precio_real, usuario):
          precio_sugerido, precio_real, diferencia, tipo_diferencia, total_fila, usuario],
         value_input_option="USER_ENTERED",
     )
-
     monto_dif_total = round(diferencia * cantidad, 2)
     if diferencia > 0:
         ws("extras_y_perdidas").append_row(
@@ -504,9 +449,7 @@ def registrar_venta_y_boleta(producto, cantidad, precio_real, usuario):
              "Venta por debajo del precio sugerido", 0, abs(monto_dif_total), monto_dif_total],
             value_input_option="USER_ENTERED",
         )
-
     return ganancia_total
-
 
 def registrar_log(usuario_id, usuario_nombre, comando, entrada, respuesta, tiempo):
     try:
@@ -518,23 +461,18 @@ def registrar_log(usuario_id, usuario_nombre, comando, entrada, respuesta, tiemp
     except Exception as e:
         log.warning(f"No se pudo registrar log: {e}")
 
-
 def actualizar_hoja_ganancias():
     try:
         hoy = date.today().isoformat()
-
         ventas_raw = ws("ventas").get_all_values(value_render_option="UNFORMATTED_VALUE")
         ahorro_raw = ws("ahorro").get_all_values(value_render_option="UNFORMATTED_VALUE")
         extras_raw = ws("extras_y_perdidas").get_all_values(value_render_option="UNFORMATTED_VALUE")
-
         ventas_hoy = [r for r in ventas_raw[1:] if r and r[0] and fecha_a_iso(r[0]) == hoy]
         ahorro_hoy = [r for r in ahorro_raw[1:] if r and r[0] and fecha_a_iso(r[0]) == hoy]
         extras_hoy = [r for r in extras_raw[1:] if r and r[0] and fecha_a_iso(r[0]) == hoy]
-
         ventas_totales = 0.0
         costos_totales = 0.0
         ganancia_neta = 0.0
-
         for r in ventas_hoy:
             try:
                 cantidad = parse_decimal(r[4]) if len(r) > 4 else 0
@@ -546,12 +484,9 @@ def actualizar_hoja_ganancias():
                 ganancia_neta += ganancia_total_fila
             except Exception:
                 continue
-
         margen_promedio = round(ganancia_neta / ventas_totales, 4) if ventas_totales else 0
-
         descuentos_dados = 0.0
         extra_ahorro = 0.0
-
         for r in extras_hoy:
             try:
                 tipo = str(r[3]).lower().strip() if len(r) > 3 else ""
@@ -562,14 +497,12 @@ def actualizar_hoja_ganancias():
                     extra_ahorro += monto
             except Exception:
                 continue
-
         for r in ahorro_hoy:
             try:
                 extra_val = parse_decimal(r[5]) if len(r) > 5 else 0
                 extra_ahorro += extra_val
             except Exception:
                 continue
-
         producto_top, vendedor_top = "", ""
         if ventas_hoy:
             acum_p, acum_v = {}, {}
@@ -588,51 +521,42 @@ def actualizar_hoja_ganancias():
                 producto_top = max(acum_p, key=acum_p.get)
             if acum_v:
                 vendedor_top = max(acum_v, key=acum_v.get)
-
         fila_nueva = [
             hoy, round(ventas_totales, 2), round(costos_totales, 2), round(ganancia_neta, 2),
             margen_promedio, round(descuentos_dados, 2), round(extra_ahorro, 2),
             producto_top, vendedor_top
         ]
-
         hoja = ws("ganancias")
         filas = hoja.get_all_values(value_render_option="UNFORMATTED_VALUE")
-
         fila_idx = None
         for i, f in enumerate(filas[1:], start=2):
             if f and fecha_a_iso(f[0]) == hoy:
                 fila_idx = i
                 break
-
         if fila_idx:
             hoja.update(f"A{fila_idx}:I{fila_idx}", [fila_nueva], value_input_option="USER_ENTERED")
         else:
             hoja.append_row(fila_nueva, value_input_option="USER_ENTERED")
-
         return {
             'ventas': ventas_totales, 'costos': costos_totales,
             'ganancia_neta': ganancia_neta, 'margen': margen_promedio,
             'descuentos': descuentos_dados, 'extras': extra_ahorro,
             'producto_top': producto_top, 'vendedor_top': vendedor_top
         }
-
     except Exception as e:
         log.warning(f"No se pudo actualizar hoja ganancias: {e}")
         return None
-
 
 def calcular_resumen_periodo(fecha_inicio_iso, fecha_fin_iso):
     try:
         hoja_ganancias = ws("ganancias")
         filas_ganancias = hoja_ganancias.get_all_values(value_render_option="UNFORMATTED_VALUE")
-
         ventas_totales = 0.0
         costos_totales = 0.0
         ganancia_neta = 0.0
         descuentos_dados = 0.0
         extra_ahorro = 0.0
         dias_con_datos = 0
-
         for f in filas_ganancias[1:]:
             if not f or not f[0]:
                 continue
@@ -645,9 +569,7 @@ def calcular_resumen_periodo(fecha_inicio_iso, fecha_fin_iso):
             ganancia_neta += parse_decimal(f[3]) if len(f) > 3 else 0
             descuentos_dados += parse_decimal(f[5]) if len(f) > 5 else 0
             extra_ahorro += parse_decimal(f[6]) if len(f) > 6 else 0
-
         margen_periodo = round(ganancia_neta / ventas_totales, 4) if ventas_totales else 0.0
-
         producto_top, vendedor_top = "", ""
         try:
             filas_ventas = ws("ventas").get_all_values(value_render_option="UNFORMATTED_VALUE")
@@ -671,7 +593,6 @@ def calcular_resumen_periodo(fecha_inicio_iso, fecha_fin_iso):
                 vendedor_top = max(acum_v, key=acum_v.get)
         except Exception as e:
             log.warning(f"No se pudo calcular top del periodo desde ventas: {e}")
-
         return {
             'dias_con_datos': dias_con_datos,
             'ventas': ventas_totales, 'costos': costos_totales,
@@ -683,48 +604,38 @@ def calcular_resumen_periodo(fecha_inicio_iso, fecha_fin_iso):
         log.warning(f"No se pudo calcular el resumen del periodo: {e}")
         return None
 
-
 SHEETS_PARA_RESET = ["movimientos", "compras", "ventas", "boletas", "extras_y_perdidas", "ahorro", "proformas"]
-
 
 def ejecutar_reset_mensual(usuario_nombre):
     mes_actual = datetime.now().strftime("%Y-%m")
     fecha_backup = ahora_iso()
     resumen = []
-
     for nombre_hoja in SHEETS_PARA_RESET:
         hoja = ws(nombre_hoja)
         filas = hoja.get_all_values()
         if not filas:
             continue
         encabezado, datos = filas[0], filas[1:]
-
         idx_fecha = 0
         for i, col in enumerate(encabezado):
             if "fecha" in col.lower() and "confirmacion" not in col.lower():
                 idx_fecha = i
                 break
-
         filas_mes = [f for f in datos if len(f) > idx_fecha and str(f[idx_fecha]).startswith(mes_actual)]
         filas_resto = [f for f in datos if not (len(f) > idx_fecha and str(f[idx_fecha]).startswith(mes_actual))]
-
         if not filas_mes:
             resumen.append(f"• {nombre_hoja}: sin datos de {mes_actual}")
             continue
-
         backup_json = json.dumps({"hoja": nombre_hoja, "encabezado": encabezado, "filas": filas_mes},
                                   ensure_ascii=False)
         ws("backups_mensuales").append_row(
             [fecha_backup, mes_actual, usuario_nombre, len(filas_mes), backup_json],
             value_input_option="USER_ENTERED",
         )
-
         hoja.clear()
         hoja.update([encabezado] + filas_resto, value_input_option="USER_ENTERED")
         resumen.append(f"• {nombre_hoja}: {len(filas_mes)} filas archivadas y borradas")
-
     return "Reset mensual completado (el inventario NO fue tocado):\n" + "\n".join(resumen)
-
 
 INTENCIONES = {
     "reset": ["reset", "resetear"],
@@ -743,15 +654,12 @@ INTENCIONES = {
     "stock_bajo": ["bajo", "alertas", "alerta"],
     "historial": ["historial", "historico"],
 }
-
 ORDEN_PRIORIDAD = ["reset", "confirmar", "agregar", "actualizar", "recomendar", "proforma", "ganancias",
                     "stock", "alias", "stock_bajo", "historial", "compra", "venta", "precio", "ayuda"]
-
 
 def detectar_intencion(texto_normalizado):
     tokens = texto_normalizado.split()
     encontradas = set()
-    
     texto_lower = texto_normalizado.lower().strip()
     for intencion, palabras_clave in INTENCIONES.items():
         for palabra in palabras_clave:
@@ -759,7 +667,6 @@ def detectar_intencion(texto_normalizado):
             if palabra_limpia in texto_lower:
                 encontradas.add(intencion)
                 break
-    
     for token in tokens:
         token = token.strip(",")
         if not token or token.isdigit() or len(token) < 4:
@@ -774,17 +681,14 @@ def detectar_intencion(texto_normalizado):
             else:
                 if difflib.get_close_matches(token, palabras_clave, n=1, cutoff=0.85):
                     encontradas.add(intencion)
-    
     for intencion in ORDEN_PRIORIDAD:
         if intencion in encontradas:
             return intencion
     return None
 
-
 def extraer_numeros(texto):
     texto_sin_comas = texto.replace(",", " ")
     return [parse_decimal(n) for n in re.findall(r"\d+(?:\.\d+)?", texto_sin_comas)]
-
 
 def quitar_palabras_intencion(texto_normalizado, lista_palabras):
     resultado = texto_normalizado
@@ -792,12 +696,10 @@ def quitar_palabras_intencion(texto_normalizado, lista_palabras):
         resultado = re.sub(rf"\b{kw}\w*\b", "", resultado)
     return resultado.strip()
 
-
 def extraer_nombre_producto(texto_normalizado, palabras_a_quitar):
     todas_las_keywords = set()
     for lista in INTENCIONES.values():
         todas_las_keywords.update(lista)
-
     tokens = texto_normalizado.split()
     resultado = []
     for token in tokens:
@@ -813,34 +715,27 @@ def extraer_nombre_producto(texto_normalizado, palabras_a_quitar):
         resultado.append(token)
     return " ".join(resultado).strip()
 
-
 def parsear_compra(texto_normalizado):
     resto = quitar_palabras_intencion(texto_normalizado, INTENCIONES["compra"])
-
     forzar_nuevo = False
     m_marca = re.match(r"^(n|nuevo|nueva)\b\s*(.*)$", resto)
     if m_marca:
         forzar_nuevo = True
         resto = m_marca.group(2).strip()
-
     costo = None
     precio_venta = None
-    
     m_c = re.search(r'\bc[:\-]?\s*(\d+(?:[.,]\d+)?)', resto, re.IGNORECASE)
     m_v = re.search(r'\bv[:\-]?\s*(\d+(?:[.,]\d+)?)', resto, re.IGNORECASE)
     if m_c:
         costo = parse_decimal(m_c.group(1))
     if m_v:
         precio_venta = parse_decimal(m_v.group(1))
-    
     resto_sin_cv = re.sub(r'\b[cv][:\-]?\s*\d+(?:[.,]\d+)?', '', resto, flags=re.IGNORECASE)
     resto_sin_cv = re.sub(r'\s+', ' ', resto_sin_cv).strip()
-
     partes = [limpiar_segmento(p) for p in resto_sin_cv.split(",")]
     partes = [p for p in partes if p]
     if not partes:
         return None
-
     primera = partes[0]
     m_cant = re.match(r"^(\d+(?:\.\d+)?)\s+(.+)$", primera)
     if m_cant:
@@ -849,10 +744,8 @@ def parsear_compra(texto_normalizado):
     else:
         cantidad = 1.0
         nombre = primera
-
     if not nombre:
         return None
-
     sueltos = []
     if costo is None or precio_venta is None:
         for seg in partes[1:]:
@@ -868,16 +761,13 @@ def parsear_compra(texto_normalizado):
             m_num = re.match(r"^(\d+(?:\.\d+)?)$", seg_l)
             if m_num:
                 sueltos.append(parse_decimal(m_num.group(1)))
-
     it = iter(sueltos)
     if costo is None:
         costo = next(it, None)
     if precio_venta is None:
         precio_venta = next(it, None)
-
     return {"cantidad": cantidad, "nombre": nombre, "costo": costo,
             "precio_venta": precio_venta, "forzar_nuevo": forzar_nuevo}
-
 
 def parsear_items_multiples(resto):
     segmentos_brutos = re.split(r",|\s+y\s+", resto)
@@ -901,7 +791,6 @@ def parsear_items_multiples(resto):
         if nombre:
             items.append({"cantidad": cantidad, "nombre": nombre, "precio": precio})
     return items
-
 
 def groq_interpretar(texto):
     prompt = f"""Eres el clasificador de un bot de inventario para un negocio peruano.
@@ -928,7 +817,6 @@ Responde UNICAMENTE un JSON valido, sin texto adicional, con este formato exacto
     except Exception as e:
         log.warning(f"Groq interpretar fallo: {e}")
         return {"intencion": "desconocido", "producto": "", "cantidad": None, "costo": None, "precio": None}
-
 
 def groq_recomendar_precio(producto, margenes_categoria):
     costo = producto["Costo"]
@@ -959,16 +847,13 @@ en espanol peruano informal), incluyendo el precio sugerido en soles."""
         sugerido = round(costo * 1.6, 2)
         return f"Sugerido: S/{sugerido:.2f} (margen 60% sobre costo S/{costo:.2f})."
 
-
 async def procesar_compra_seleccionada(update, context, producto, args):
     usuario_nombre = args[0]
     datos = args[1]
-
     cantidad = parse_int(datos["cantidad"])
     costo = datos["costo"]
     precio_venta = datos["precio_venta"]
     forzar_nuevo = datos["forzar_nuevo"]
-
     if forzar_nuevo:
         nuevo = crear_producto(producto["Nombre_base"], costo, cantidad, precio_venta, usuario_nombre)
         registrar_movimiento(nuevo["SKU"], "compra", cantidad, costo, usuario_nombre, "nuevo (forzado)")
@@ -978,47 +863,37 @@ async def procesar_compra_seleccionada(update, context, producto, args):
                      f"Precio venta: {fmt_money(nuevo['Precio_venta_actual'])}")
         await update.message.reply_text(respuesta, parse_mode=None)
         return
-
     nuevo_stock = parse_int(producto["Stock_actual"]) + cantidad
     actualizar_celda("inventario", producto["_row"], "Stock_actual", nuevo_stock)
-
     costo_final = costo if costo is not None else producto["Costo"]
     if costo is not None:
         actualizar_celda("inventario", producto["_row"], "Costo", costo_final)
-
     precio_final = precio_venta if precio_venta is not None else producto["Precio_venta_actual"]
     if precio_venta is not None:
         actualizar_celda("inventario", producto["_row"], "Precio_venta_actual", precio_final)
-
     margen = round((precio_final - costo_final) / costo_final, 6) if costo_final else 0
     actualizar_celda("inventario", producto["_row"], "Margen", margen)
     actualizar_celda("inventario", producto["_row"], "Estado_stock",
                      estado_stock(nuevo_stock, producto["Stock_minimo"]))
     actualizar_celda("inventario", producto["_row"], "Ultima_actualizacion", ahora_iso())
     actualizar_celda("inventario", producto["_row"], "Actualizado_por", usuario_nombre)
-
     registrar_movimiento(producto["SKU"], "compra", cantidad, costo_final, usuario_nombre)
     registrar_compra(producto["SKU"], cantidad, costo_final, usuario_nombre)
-
     respuesta = (f"🛒 Compra registrada: {cantidad} x 📦 {producto['Nombre_completo']} a {fmt_money(costo_final)}\n"
                  f"Stock nuevo: {nuevo_stock} | Precio venta: {fmt_money(precio_final)}")
     await update.message.reply_text(respuesta, parse_mode=None)
-
 
 def manejar_compra(texto_norm, usuario_nombre, chat_id):
     datos = parsear_compra(texto_norm)
     if not datos:
         return ("No entendi bien. Usa: 'compre 5 arboles a 3', 'compre 5 arboles, 3, 10' "
                 "o 'compre iphone 10, c8, v20' (c=costo, v=precio venta).")
-
     cantidad = parse_int(datos["cantidad"])
     nombre_producto = datos["nombre"]
     costo = datos["costo"]
     precio_venta = datos["precio_venta"]
     forzar_nuevo = datos["forzar_nuevo"]
-
     productos = leer_inventario()
-
     if forzar_nuevo:
         if costo is None:
             return f"Para crear '{nombre_producto}' como producto nuevo necesito el costo (ej: c8)."
@@ -1028,9 +903,7 @@ def manejar_compra(texto_norm, usuario_nombre, chat_id):
         return (f"🛒 Producto nuevo creado: 📦 {nuevo['Nombre_completo']} (SKU {nuevo['SKU']})\n"
                 f"Stock: {cantidad} | Costo: {fmt_money(costo)} | "
                 f"Precio venta: {fmt_money(nuevo['Precio_venta_actual'])}")
-
     estado, resultado = buscar_producto(nombre_producto, productos)
-
     if estado == "multiple":
         CONTEXTO_SELECCION[chat_id] = {
             "productos": resultado,
@@ -1040,7 +913,6 @@ def manejar_compra(texto_norm, usuario_nombre, chat_id):
         return ("Encontre varias opciones, responde con el numero:\n" +
                 formatear_lista_productos(resultado) +
                 "\n\nEscribe el numero del producto que quieres.")
-
     if estado == "no_encontrado":
         if costo is not None and precio_venta is not None:
             nuevo = crear_producto(nombre_producto, costo, cantidad, precio_venta, usuario_nombre)
@@ -1058,46 +930,37 @@ def manejar_compra(texto_norm, usuario_nombre, chat_id):
         return (f"🛒 Producto nuevo creado: 📦 {nuevo['Nombre_completo']} (SKU {nuevo['SKU']})\n"
                 f"Stock: {cantidad} | Costo: {fmt_money(costo)} | "
                 f"Precio venta: {fmt_money(nuevo['Precio_venta_actual'])}")
-
     producto = resultado
     nuevo_stock = parse_int(producto["Stock_actual"]) + cantidad
     actualizar_celda("inventario", producto["_row"], "Stock_actual", nuevo_stock)
-
     costo_final = costo if costo is not None else producto["Costo"]
     if costo is not None:
         actualizar_celda("inventario", producto["_row"], "Costo", costo_final)
-
     precio_final = precio_venta if precio_venta is not None else producto["Precio_venta_actual"]
     if precio_venta is not None:
         actualizar_celda("inventario", producto["_row"], "Precio_venta_actual", precio_final)
-
     margen = round((precio_final - costo_final) / costo_final, 6) if costo_final else 0
     actualizar_celda("inventario", producto["_row"], "Margen", margen)
     actualizar_celda("inventario", producto["_row"], "Estado_stock",
                      estado_stock(nuevo_stock, producto["Stock_minimo"]))
     actualizar_celda("inventario", producto["_row"], "Ultima_actualizacion", ahora_iso())
     actualizar_celda("inventario", producto["_row"], "Actualizado_por", usuario_nombre)
-
     registrar_movimiento(producto["SKU"], "compra", cantidad, costo_final, usuario_nombre)
     registrar_compra(producto["SKU"], cantidad, costo_final, usuario_nombre)
-
     return (f"🛒 Compra registrada: {cantidad} x 📦 {producto['Nombre_completo']} a {fmt_money(costo_final)}\n"
             f"Stock nuevo: {nuevo_stock} | Precio venta: {fmt_money(precio_final)}")
-
 
 def _vender_un_item(producto, cantidad, precio_real, usuario_nombre):
     stock_actual = parse_int(producto["Stock_actual"])
     if cantidad > stock_actual:
         return (f"⚠️ Stock insuficiente de 📦 {producto['Nombre_completo']} "
                 f"(disponible {stock_actual}, pedido {cantidad}). No se vendio.", 0.0)
-
     nuevo_stock = stock_actual - cantidad
     actualizar_celda("inventario", producto["_row"], "Stock_actual", nuevo_stock)
     actualizar_celda("inventario", producto["_row"], "Estado_stock",
                      estado_stock(nuevo_stock, producto["Stock_minimo"]))
     registrar_movimiento(producto["SKU"], "venta", cantidad, precio_real, usuario_nombre)
     ganancia = registrar_venta_y_boleta(producto, cantidad, precio_real, usuario_nombre)
-
     linea = f"{cantidad} x 📦 {producto['Nombre_completo']} a {fmt_money(precio_real)} (stock: {nuevo_stock})"
     diferencia = round(precio_real - producto["Precio_venta_actual"], 2)
     if diferencia > 0:
@@ -1106,24 +969,19 @@ def _vender_un_item(producto, cantidad, precio_real, usuario_nombre):
         linea += f" 📉 descuento {fmt_money(abs(diferencia) * cantidad)}"
     return linea, ganancia
 
-
 async def procesar_venta_seleccionada(update, context, producto, args):
     usuario_nombre = args[0]
     item = args[1]
     chat_id = update.effective_chat.id
-    
     precio_real = item["precio"] if item["precio"] is not None else producto["Precio_venta_actual"]
     cantidad = parse_int(item["cantidad"])
     linea, ganancia = _vender_un_item(producto, cantidad, precio_real, usuario_nombre)
-    
     if chat_id not in CONTEXTO_SELECCION:
         CONTEXTO_SELECCION[chat_id] = {"resultados_venta": []}
     if "resultados_venta" not in CONTEXTO_SELECCION[chat_id]:
         CONTEXTO_SELECCION[chat_id]["resultados_venta"] = []
     CONTEXTO_SELECCION[chat_id]["resultados_venta"].append((linea, ganancia))
-    
     await _continuar_venta_pendiente(update, context, chat_id, usuario_nombre)
-
 
 async def _continuar_venta_pendiente(update, context, chat_id, usuario_nombre):
     if chat_id not in CONTEXTO_SELECCION or "cola_venta" not in CONTEXTO_SELECCION[chat_id]:
@@ -1137,7 +995,6 @@ async def _continuar_venta_pendiente(update, context, chat_id, usuario_nombre):
             if chat_id in CONTEXTO_SELECCION:
                 del CONTEXTO_SELECCION[chat_id]
         return
-    
     cola = CONTEXTO_SELECCION[chat_id]["cola_venta"]
     if not cola:
         if "resultados_venta" in CONTEXTO_SELECCION[chat_id]:
@@ -1150,13 +1007,10 @@ async def _continuar_venta_pendiente(update, context, chat_id, usuario_nombre):
             if chat_id in CONTEXTO_SELECCION:
                 del CONTEXTO_SELECCION[chat_id]
         return
-    
     item = cola.pop(0)
     nombre_limpio = limpiar_nombre_completo(item["nombre"])
     productos = leer_inventario()
-    
     estado, resultado = buscar_producto(nombre_limpio, productos, umbral=0.7)
-    
     if estado == "no_encontrado":
         nombre_singular = singularizar(nombre_limpio)
         if nombre_singular != nombre_limpio:
@@ -1169,7 +1023,6 @@ async def _continuar_venta_pendiente(update, context, chat_id, usuario_nombre):
                 if normalizar(p["Nombre_base"]) == nombre_norm:
                     estado, resultado = "ok", p
                     break
-    
     if estado == "multiple":
         CONTEXTO_SELECCION[chat_id]["cola_venta"] = cola
         CONTEXTO_SELECCION[chat_id]["callback"] = procesar_venta_seleccionada
@@ -1180,7 +1033,6 @@ async def _continuar_venta_pendiente(update, context, chat_id, usuario_nombre):
                     "\n\nEscribe el numero del producto que quieres.")
         await update.message.reply_text(respuesta, parse_mode=None)
         return
-    
     if estado == "no_encontrado":
         if "resultados_venta" not in CONTEXTO_SELECCION[chat_id]:
             CONTEXTO_SELECCION[chat_id]["resultados_venta"] = []
@@ -1188,35 +1040,28 @@ async def _continuar_venta_pendiente(update, context, chat_id, usuario_nombre):
         CONTEXTO_SELECCION[chat_id]["cola_venta"] = cola
         await _continuar_venta_pendiente(update, context, chat_id, usuario_nombre)
         return
-    
     producto = resultado
     precio_real = item["precio"] if item["precio"] is not None else producto["Precio_venta_actual"]
     cantidad = parse_int(item["cantidad"])
     linea, ganancia = _vender_un_item(producto, cantidad, precio_real, usuario_nombre)
-    
     if "resultados_venta" not in CONTEXTO_SELECCION[chat_id]:
         CONTEXTO_SELECCION[chat_id]["resultados_venta"] = []
     CONTEXTO_SELECCION[chat_id]["resultados_venta"].append((linea, ganancia))
     CONTEXTO_SELECCION[chat_id]["cola_venta"] = cola
     await _continuar_venta_pendiente(update, context, chat_id, usuario_nombre)
 
-
 def manejar_venta(texto_norm, usuario_nombre, chat_id):
     resto = quitar_palabras_intencion(texto_norm, INTENCIONES["venta"])
     items = parsear_items_multiples(resto)
     if not items:
         return "Usa: 'vendi 2 arboles a 10' o 'vendi 1 laptop, 1 laptop pro'."
-
     productos = leer_inventario()
     lineas = []
     ganancia_total = 0.0
     cola_pendientes = []
-    
     for item in items:
         nombre_limpio = limpiar_nombre_completo(item["nombre"])
-        
         estado, resultado = buscar_producto(nombre_limpio, productos, umbral=0.7)
-        
         if estado == "no_encontrado":
             nombre_singular = singularizar(nombre_limpio)
             if nombre_singular != nombre_limpio:
@@ -1229,22 +1074,18 @@ def manejar_venta(texto_norm, usuario_nombre, chat_id):
                     if normalizar(p["Nombre_base"]) == nombre_norm:
                         estado, resultado = "ok", p
                         break
-        
         if estado == "multiple":
             cola_pendientes.append(item)
             continue
-        
         if estado == "no_encontrado":
             lineas.append(f"No encontre '{item['nombre']}'.")
             continue
-
         producto = resultado
         precio_real = item["precio"] if item["precio"] is not None else producto["Precio_venta_actual"]
         cantidad = parse_int(item["cantidad"])
         linea, ganancia = _vender_un_item(producto, cantidad, precio_real, usuario_nombre)
         lineas.append(linea)
         ganancia_total += ganancia
-    
     if cola_pendientes:
         CONTEXTO_SELECCION[chat_id] = {
             "cola_venta": cola_pendientes,
@@ -1254,10 +1095,8 @@ def manejar_venta(texto_norm, usuario_nombre, chat_id):
             "productos": None,
         }
         return None
-    
     actualizar_hoja_ganancias()
     return "💰 Venta registrada:\n" + "\n".join(lineas) + f"\n\n📈 Ganancia total: {fmt_money(ganancia_total)}"
-
 
 async def procesar_precio_seleccionado(update, context, producto, args):
     p = producto
@@ -1267,15 +1106,12 @@ async def procesar_precio_seleccionado(update, context, producto, args):
                  f"Stock: {parse_int(p['Stock_actual'])} {p['Estado_stock']}")
     await update.message.reply_text(respuesta, parse_mode=None)
 
-
 def manejar_precio(texto_norm, chat_id=None):
     nombre_producto = extraer_nombre_producto(texto_norm, INTENCIONES["precio"])
     if not nombre_producto:
         return "Precio de que producto? Ej: 'precio de arboles'."
-
     productos = leer_inventario()
     estado, resultado = buscar_producto(nombre_producto, productos)
-
     if estado == "multiple":
         if chat_id is not None:
             CONTEXTO_SELECCION[chat_id] = {
@@ -1288,13 +1124,11 @@ def manejar_precio(texto_norm, chat_id=None):
                 "\n\nEscribe el numero del producto que quieres.")
     if estado == "no_encontrado":
         return f"No encontre '{nombre_producto}' en el inventario."
-
     p = resultado
     return (f"{p['Nombre_completo']} (SKU {p['SKU']})\n"
             f"Precio venta: {fmt_money(p['Precio_venta_actual'])}\n"
             f"Costo: {fmt_money(p['Costo'])}\n"
             f"Stock: {parse_int(p['Stock_actual'])} {p['Estado_stock']}")
-
 
 def manejar_stock():
     productos = leer_inventario()
@@ -1308,14 +1142,11 @@ def manejar_stock():
         )
     return "\n".join(lineas)
 
-
 def manejar_stock_bajo():
     productos = leer_inventario()
     bajos = [p for p in productos if p.get("Estado_stock") in ("Bajo", "Agotado")]
-
     if not bajos:
         return "✅ Todos los productos tienen stock suficiente."
-
     bajos = sorted(bajos, key=lambda x: parse_int(x["Stock_actual"]))
     lineas = ["⚠️ Productos con stock bajo:"]
     for p in bajos:
@@ -1327,7 +1158,6 @@ def manejar_stock_bajo():
         )
     return "\n".join(lineas)
 
-
 def calcular_descuento(subtotal):
     if subtotal > 300:
         return 0.10
@@ -1337,29 +1167,22 @@ def calcular_descuento(subtotal):
         return 0.05
     return 0.0
 
-
 def manejar_proforma(texto_norm, usuario_nombre, chat_id):
     es_agregar = detectar_intencion(texto_norm) == "agregar"
-
     if es_agregar:
         pendiente = PROFORMAS_PENDIENTES.get(chat_id)
         if not pendiente:
             return "🧾 No tienes una proforma activa. Crea una con 'proforma 2 arboles, 3 galletas'."
-
         resto = quitar_palabras_intencion(texto_norm, INTENCIONES["agregar"])
         items_nuevos = parsear_items_multiples(resto)
         if not items_nuevos:
             return "🧾 Que quieres agregar? Ej: 'agregar 1 cel, 3 codos'."
-
         return _agregar_a_proforma(chat_id, items_nuevos, usuario_nombre)
-
     resto = quitar_palabras_intencion(texto_norm, INTENCIONES["proforma"])
     items_pedidos = parsear_items_multiples(resto)
     if not items_pedidos:
         return "🧾 Usa: 'proforma 2 arboles, 3 galletas'."
-
     return _crear_proforma(items_pedidos, usuario_nombre, chat_id)
-
 
 async def procesar_proforma_seleccionada(update, context, producto, args):
     chat_id = update.effective_chat.id
@@ -1369,7 +1192,6 @@ async def procesar_proforma_seleccionada(update, context, producto, args):
     items_json_acum = args[3] if len(args) > 3 else []
     subtotal_acum = args[4] if len(args) > 4 else 0.0
     detalle_acum = args[5] if len(args) > 5 else []
-    
     cantidad = parse_int(item["cantidad"])
     precio = item["precio"] if item["precio"] is not None else producto["Precio_venta_actual"]
     sub = round(cantidad * precio, 2)
@@ -1377,10 +1199,8 @@ async def procesar_proforma_seleccionada(update, context, producto, args):
     detalle_acum.append(f"{cantidad} x {producto['Nombre_completo']} @ {fmt_money(precio)} = {fmt_money(sub)}")
     items_json_acum.append({"sku": producto["SKU"], "producto": producto["Nombre_completo"],
                            "cantidad": cantidad, "precio": precio, "subtotal": sub})
-    
     await _continuar_proforma_pendiente(update, context, chat_id, items_pedidos, usuario_nombre, 
                                          items_json_acum, subtotal_acum, detalle_acum)
-
 
 async def _continuar_proforma_pendiente(update, context, chat_id, items_pedidos, usuario_nombre,
                                          items_json_acum, subtotal_acum, detalle_acum):
@@ -1390,11 +1210,9 @@ async def _continuar_proforma_pendiente(update, context, chat_id, items_pedidos,
             if chat_id in CONTEXTO_SELECCION:
                 del CONTEXTO_SELECCION[chat_id]
             return
-        
         porcentaje_descuento = calcular_descuento(subtotal_acum)
         descuento_soles = round(subtotal_acum * porcentaje_descuento, 2)
         total = round(subtotal_acum - descuento_soles, 2)
-
         nuevo_id = int(time.time())
         fecha = ahora_iso()
         ws("proformas").append_row(
@@ -1402,7 +1220,6 @@ async def _continuar_proforma_pendiente(update, context, chat_id, items_pedidos,
              subtotal_acum, descuento_soles, porcentaje_descuento, total, "pendiente", "", usuario_nombre],
             value_input_option="USER_ENTERED",
         )
-
         PROFORMAS_PENDIENTES[chat_id] = {
             "id": nuevo_id,
             "items": items_json_acum,
@@ -1410,7 +1227,6 @@ async def _continuar_proforma_pendiente(update, context, chat_id, items_pedidos,
             "total": total,
             "modificable": True
         }
-
         respuesta = "🧾 Proforma:\n" + "\n".join(detalle_acum)
         respuesta += f"\n\nSubtotal: {fmt_money(subtotal_acum)}"
         if porcentaje_descuento > 0:
@@ -1422,13 +1238,10 @@ async def _continuar_proforma_pendiente(update, context, chat_id, items_pedidos,
         if chat_id in CONTEXTO_SELECCION:
             del CONTEXTO_SELECCION[chat_id]
         return
-    
     item = items_pedidos.pop(0)
     nombre_limpio = limpiar_nombre_completo(item["nombre"])
     productos = leer_inventario()
-    
     estado, resultado = buscar_producto(nombre_limpio, productos)
-    
     if estado == "multiple":
         CONTEXTO_SELECCION[chat_id] = {
             "cola_proforma": items_pedidos,
@@ -1444,13 +1257,11 @@ async def _continuar_proforma_pendiente(update, context, chat_id, items_pedidos,
                     "\n\nEscribe el numero del producto que quieres.")
         await update.message.reply_text(respuesta, parse_mode=None)
         return
-    
     if estado == "no_encontrado":
         detalle_acum.append(f"No encontre '{item['nombre']}'")
         await _continuar_proforma_pendiente(update, context, chat_id, items_pedidos, usuario_nombre,
                                              items_json_acum, subtotal_acum, detalle_acum)
         return
-    
     p = resultado
     cantidad = parse_int(item["cantidad"])
     precio = item["precio"] if item["precio"] is not None else p["Precio_venta_actual"]
@@ -1459,31 +1270,24 @@ async def _continuar_proforma_pendiente(update, context, chat_id, items_pedidos,
     detalle_acum.append(f"{cantidad} x {p['Nombre_completo']} @ {fmt_money(precio)} = {fmt_money(sub)}")
     items_json_acum.append({"sku": p["SKU"], "producto": p["Nombre_completo"],
                            "cantidad": cantidad, "precio": precio, "subtotal": sub})
-    
     await _continuar_proforma_pendiente(update, context, chat_id, items_pedidos, usuario_nombre,
                                          items_json_acum, subtotal_acum, detalle_acum)
-
 
 def _crear_proforma(items_pedidos, usuario_nombre, chat_id):
     detalle = []
     items_json = []
     subtotal = 0.0
     cola_pendientes = []
-    
     productos = leer_inventario()
-    
     for item in items_pedidos:
         nombre_limpio = limpiar_nombre_completo(item["nombre"])
         estado, resultado = buscar_producto(nombre_limpio, productos)
-
         if estado == "multiple":
             cola_pendientes.append(item)
             continue
-
         if estado == "no_encontrado":
             detalle.append(f"No encontre '{item['nombre']}'")
             continue
-
         p = resultado
         cantidad = parse_int(item["cantidad"])
         precio = item["precio"] if item["precio"] is not None else p["Precio_venta_actual"]
@@ -1492,7 +1296,6 @@ def _crear_proforma(items_pedidos, usuario_nombre, chat_id):
         detalle.append(f"{cantidad} x {p['Nombre_completo']} @ {fmt_money(precio)} = {fmt_money(sub)}")
         items_json.append({"sku": p["SKU"], "producto": p["Nombre_completo"],
                            "cantidad": cantidad, "precio": precio, "subtotal": sub})
-
     if cola_pendientes:
         CONTEXTO_SELECCION[chat_id] = {
             "cola_proforma": cola_pendientes,
@@ -1504,14 +1307,11 @@ def _crear_proforma(items_pedidos, usuario_nombre, chat_id):
             "productos": None,
         }
         return None
-
     if not items_json:
         return "No pude armar la proforma. Revisa los nombres.\n" + "\n".join(detalle)
-
     porcentaje_descuento = calcular_descuento(subtotal)
     descuento_soles = round(subtotal * porcentaje_descuento, 2)
     total = round(subtotal - descuento_soles, 2)
-
     nuevo_id = int(time.time())
     fecha = ahora_iso()
     ws("proformas").append_row(
@@ -1519,7 +1319,6 @@ def _crear_proforma(items_pedidos, usuario_nombre, chat_id):
          subtotal, descuento_soles, porcentaje_descuento, total, "pendiente", "", usuario_nombre],
         value_input_option="USER_ENTERED",
     )
-
     PROFORMAS_PENDIENTES[chat_id] = {
         "id": nuevo_id,
         "items": items_json,
@@ -1527,7 +1326,6 @@ def _crear_proforma(items_pedidos, usuario_nombre, chat_id):
         "total": total,
         "modificable": True
     }
-
     respuesta = "🧾 Proforma:\n" + "\n".join(detalle)
     respuesta += f"\n\nSubtotal: {fmt_money(subtotal)}"
     if porcentaje_descuento > 0:
@@ -1537,29 +1335,23 @@ def _crear_proforma(items_pedidos, usuario_nombre, chat_id):
     respuesta += "\nPara confirmar: 'confirmar' (o 'confirmar <pago>' / 'confirmar <total_real> <pago>')"
     return respuesta
 
-
 def _agregar_a_proforma(chat_id, items_nuevos, usuario_nombre):
     pendiente = PROFORMAS_PENDIENTES.get(chat_id)
     if not pendiente:
         return "🧾 No tienes una proforma activa."
-
     productos = leer_inventario()
     detalle = []
     subtotal_extra = 0.0
     items_extra = []
-
     for item in items_nuevos:
         nombre_limpio = limpiar_nombre_completo(item["nombre"])
         estado, resultado = buscar_producto(nombre_limpio, productos)
-
         if estado == "multiple":
             resultado = resultado[0]
             estado = "ok"
-
         if estado == "no_encontrado":
             detalle.append(f"No encontre '{item['nombre']}'")
             continue
-
         p = resultado
         cantidad = parse_int(item["cantidad"])
         precio = item["precio"] if item["precio"] is not None else p["Precio_venta_actual"]
@@ -1568,16 +1360,13 @@ def _agregar_a_proforma(chat_id, items_nuevos, usuario_nombre):
         detalle.append(f"{cantidad} x {p['Nombre_completo']} @ {fmt_money(precio)} = {fmt_money(sub)}")
         items_extra.append({"sku": p["SKU"], "producto": p["Nombre_completo"],
                             "cantidad": cantidad, "precio": precio, "subtotal": sub})
-
     if not items_extra:
         return "⚠️ No pude agregar nada. Revisa los nombres."
-
     pendiente["items"] += items_extra
     nuevo_subtotal = pendiente["subtotal"] + subtotal_extra
     pendiente["subtotal"] = nuevo_subtotal
     nuevo_total = round(nuevo_subtotal * (1 - calcular_descuento(nuevo_subtotal)), 2)
     pendiente["total"] = nuevo_total
-
     hoja_pro = ws("proformas")
     filas_pro = hoja_pro.get_all_values()
     for i, fila in enumerate(filas_pro[1:], start=2):
@@ -1587,7 +1376,6 @@ def _agregar_a_proforma(chat_id, items_nuevos, usuario_nombre):
             hoja_pro.update_cell(i, 6, round(nuevo_subtotal * calcular_descuento(nuevo_subtotal), 2))
             hoja_pro.update_cell(i, 8, nuevo_total)
             break
-
     respuesta = "🧾 Proforma actualizada\n\n"
     for it in pendiente["items"]:
         respuesta += f"{it['cantidad']} x {it['producto']} @ {fmt_money(it['precio'])} = {fmt_money(it['subtotal'])}\n"
@@ -1600,7 +1388,6 @@ def _agregar_a_proforma(chat_id, items_nuevos, usuario_nombre):
     respuesta += "\nO confirmar con 'confirmar'"
     return respuesta
 
-
 def actualizar_proforma_estado(proforma_id, estado):
     hoja = ws("proformas")
     filas = hoja.get_all_values()
@@ -1609,7 +1396,6 @@ def actualizar_proforma_estado(proforma_id, estado):
             hoja.update_cell(i, 9, estado)
             hoja.update_cell(i, 10, ahora_iso())
             break
-
 
 def registrar_ajuste_proforma(proforma_id, tipo, monto_abs, subtotal, total_real):
     fecha = ahora_iso()
@@ -1631,19 +1417,15 @@ def registrar_ajuste_proforma(proforma_id, tipo, monto_abs, subtotal, total_real
             value_input_option="USER_ENTERED",
         )
 
-
 def manejar_confirmar(texto_norm, chat_id, usuario_nombre):
     pendiente = PROFORMAS_PENDIENTES.get(chat_id)
     if not pendiente:
         return "🧾 No tienes ninguna proforma pendiente. Crea una primero: 'proforma 2 arboles'."
-
     numeros = extraer_numeros(quitar_palabras_intencion(texto_norm, INTENCIONES["confirmar"]))
     total_real, pago = (numeros[0], numeros[1]) if len(numeros) >= 2 else (None, numeros[0] if numeros else None)
-
     productos = leer_inventario()
     lineas = []
     ganancia_total = 0.0
-
     stock_ok = True
     for item in pendiente["items"]:
         producto = next((p for p in productos if p["SKU"] == item["sku"]), None)
@@ -1656,13 +1438,10 @@ def manejar_confirmar(texto_norm, chat_id, usuario_nombre):
                           f"(disponible {parse_int(producto['Stock_actual'])}, pedido {item['cantidad']}).")
             stock_ok = False
             continue
-
     if not stock_ok:
         return "⚠️ No se puede confirmar la proforma porque hay productos sin stock suficiente.\n" + "\n".join(lineas)
-
     lineas = []
     ganancia_total = 0.0
-
     for item in pendiente["items"]:
         producto = next((p for p in productos if p["SKU"] == item["sku"]), None)
         if not producto:
@@ -1671,14 +1450,11 @@ def manejar_confirmar(texto_norm, chat_id, usuario_nombre):
         linea, ganancia = _vender_un_item(producto, item["cantidad"], item["precio"], usuario_nombre)
         lineas.append(linea)
         ganancia_total += ganancia
-
     actualizar_proforma_estado(pendiente["id"], "confirmada")
     del PROFORMAS_PENDIENTES[chat_id]
     actualizar_hoja_ganancias()
-
     respuesta = "🧾 Proforma confirmada como venta:\n" + "\n".join(lineas)
     respuesta += f"\n📈 Ganancia: {fmt_money(ganancia_total)}"
-
     subtotal_catalogo = pendiente["subtotal"]
     if total_real is not None:
         diferencia = round(total_real - subtotal_catalogo, 2)
@@ -1688,7 +1464,6 @@ def manejar_confirmar(texto_norm, chat_id, usuario_nombre):
         elif diferencia < 0:
             respuesta += f"\n📉 Descuento/perdida vs catalogo: {fmt_money(abs(diferencia))}"
             registrar_ajuste_proforma(pendiente["id"], "perdida", abs(diferencia), subtotal_catalogo, total_real)
-
     if pago is not None:
         total_a_cobrar = total_real if total_real is not None else pendiente["total"]
         vuelto = round(pago - total_a_cobrar, 2)
@@ -1698,9 +1473,7 @@ def manejar_confirmar(texto_norm, chat_id, usuario_nombre):
             respuesta += f"\n💵 Pago {fmt_money(pago)} -> Falta cobrar: {fmt_money(abs(vuelto))}"
         else:
             respuesta += f"\n💵 Pago exacto: {fmt_money(pago)}"
-
     return respuesta
-
 
 async def procesar_actualizacion_seleccionada(update, context, producto, args):
     usuario_nombre = args[0]
@@ -1708,9 +1481,7 @@ async def procesar_actualizacion_seleccionada(update, context, producto, args):
     numeros = args[2]
     costo_explicito = args[3] if len(args) > 3 else None
     precio_explicito = args[4] if len(args) > 4 else None
-
     ahora = ahora_iso()
-
     if campo == "Stock_actual":
         nuevo_stock = parse_int(numeros[-1]) if numeros else parse_int(costo_explicito or precio_explicito or 0)
         actualizar_celda("inventario", producto["_row"], "Stock_actual", nuevo_stock)
@@ -1721,7 +1492,6 @@ async def procesar_actualizacion_seleccionada(update, context, producto, args):
         respuesta = f"Actualizado: {producto['Nombre_completo']} -> Stock: {nuevo_stock}"
         await update.message.reply_text(respuesta, parse_mode=None)
         return
-
     if costo_explicito is not None and precio_explicito is not None:
         costo_nuevo, precio_nuevo = costo_explicito, precio_explicito
     elif costo_explicito is not None and precio_explicito is None:
@@ -1737,33 +1507,26 @@ async def procesar_actualizacion_seleccionada(update, context, producto, args):
             costo_nuevo, precio_nuevo = numeros[0], producto["Precio_venta_actual"]
         else:
             costo_nuevo, precio_nuevo = producto["Costo"], numeros[0]
-
     actualizar_celda("inventario", producto["_row"], "Costo", costo_nuevo)
     actualizar_celda("inventario", producto["_row"], "Precio_venta_actual", precio_nuevo)
     margen = round((precio_nuevo - costo_nuevo) / costo_nuevo, 6) if costo_nuevo else 0
     actualizar_celda("inventario", producto["_row"], "Margen", margen)
     actualizar_celda("inventario", producto["_row"], "Ultima_actualizacion", ahora)
     actualizar_celda("inventario", producto["_row"], "Actualizado_por", usuario_nombre)
-
     respuesta = (f"Actualizado: {producto['Nombre_completo']} -> "
                  f"Costo: {fmt_money(costo_nuevo)} | Precio venta: {fmt_money(precio_nuevo)}")
     await update.message.reply_text(respuesta, parse_mode=None)
 
-
 PATRON_ALIAS_COMANDO = re.compile(r'^alias\s+"([^"]+)"\s+(\S+)\s*$', re.IGNORECASE)
-
 
 def manejar_alias(texto_original, usuario_nombre):
     m = PATRON_ALIAS_COMANDO.match(texto_original.strip())
     if not m:
         return ('⚠️ Usa el formato: alias "Nombre completo exacto" nuevo_alias\n'
                 'Ejemplo: alias "Tubo 1/2 con rosca" tr')
-
     nombre_exacto = m.group(1).strip()
     nuevo_alias = m.group(2).strip()
-
     productos = leer_inventario()
-
     producto = next(
         (p for p in productos if p["Nombre_completo"].strip().lower() == nombre_exacto.lower()),
         None,
@@ -1771,11 +1534,9 @@ def manejar_alias(texto_original, usuario_nombre):
     if not producto:
         return (f"❌ No encontré el producto exacto '{nombre_exacto}'. "
                 f"Revisa el nombre o usa `tubo` para ver la lista con nombres copiables.")
-
     nuevo_alias_norm = normalizar(nuevo_alias)
     if not nuevo_alias_norm:
         return "⚠️ El alias no puede estar vacio."
-
     conflicto = next(
         (p for p in productos
          if p["SKU"] != producto["SKU"] and normalizar(p.get("Alias", "")) == nuevo_alias_norm),
@@ -1784,13 +1545,10 @@ def manejar_alias(texto_original, usuario_nombre):
     if conflicto:
         return (f"⚠️ El alias '{nuevo_alias}' ya esta asignado a "
                 f"'{conflicto['Nombre_completo']}'. Usa otro.")
-
     actualizar_celda("inventario", producto["_row"], "Alias", nuevo_alias_norm)
     actualizar_celda("inventario", producto["_row"], "Ultima_actualizacion", ahora_iso())
     actualizar_celda("inventario", producto["_row"], "Actualizado_por", usuario_nombre)
-
     return f"✅ Alias actualizado: {producto['Nombre_completo']} -> alias: `{nuevo_alias_norm}`"
-
 
 def manejar_actualizar(texto_norm, usuario_nombre, chat_id):
     if re.search(r"\bprecio\b", texto_norm):
@@ -1801,7 +1559,6 @@ def manejar_actualizar(texto_norm, usuario_nombre, chat_id):
         campo = "Stock_actual"
     else:
         campo = "Precio_venta_actual"
-    
     costo_explicito = None
     precio_explicito = None
     m_c = re.search(r'\bc[:\-]?\s*(\d+(?:[.,]\d+)?)', texto_norm, re.IGNORECASE)
@@ -1810,20 +1567,16 @@ def manejar_actualizar(texto_norm, usuario_nombre, chat_id):
         costo_explicito = parse_decimal(m_c.group(1))
     if m_v:
         precio_explicito = parse_decimal(m_v.group(1))
-    
     texto_para_numeros = re.sub(r'\b[cv][:\-]?\s*\d+(?:[.,]\d+)?', '', texto_norm, flags=re.IGNORECASE)
     numeros = extraer_numeros(texto_para_numeros)
-    
     if not numeros and costo_explicito is None and precio_explicito is None:
         return "Usa: 'actualizar arboles precio 12' o 'actualizar arboles precio 5 19' (costo y precio)."
-
     texto_sin_cv = re.sub(r'\b[cv][:\-]?\s*\d+(?:[.,]\d+)?', '', texto_norm, flags=re.IGNORECASE)
     texto_sin_cv = re.sub(r'\s+', ' ', texto_sin_cv).strip()
     palabras_extra = set(INTENCIONES["actualizar"]) | {"precio", "costo", "stock", "c", "v"}
     nombre_producto = extraer_nombre_producto(texto_sin_cv, palabras_extra)
     if not nombre_producto:
         return "Que producto quieres actualizar?"
-
     productos = leer_inventario()
     estado, resultado = buscar_producto(nombre_producto, productos)
     if estado == "multiple":
@@ -1835,13 +1588,10 @@ def manejar_actualizar(texto_norm, usuario_nombre, chat_id):
         return ("Encontre varias opciones, responde con el numero:\n" +
                 formatear_lista_productos(resultado) +
                 "\n\nEscribe el numero del producto que quieres actualizar.")
-
     if estado == "no_encontrado":
         return f"No encontre '{nombre_producto}'."
-
     p = resultado
     ahora = ahora_iso()
-
     if campo == "Stock_actual":
         nuevo_stock = parse_int(numeros[-1]) if numeros else parse_int(costo_explicito or precio_explicito or 0)
         actualizar_celda("inventario", p["_row"], "Stock_actual", nuevo_stock)
@@ -1850,7 +1600,6 @@ def manejar_actualizar(texto_norm, usuario_nombre, chat_id):
         actualizar_celda("inventario", p["_row"], "Ultima_actualizacion", ahora)
         actualizar_celda("inventario", p["_row"], "Actualizado_por", usuario_nombre)
         return f"Actualizado: {p['Nombre_completo']} -> Stock: {nuevo_stock}"
-
     if costo_explicito is not None and precio_explicito is not None:
         costo_nuevo, precio_nuevo = costo_explicito, precio_explicito
     elif costo_explicito is not None and precio_explicito is None:
@@ -1866,17 +1615,14 @@ def manejar_actualizar(texto_norm, usuario_nombre, chat_id):
             costo_nuevo, precio_nuevo = numeros[0], p["Precio_venta_actual"]
         else:
             costo_nuevo, precio_nuevo = p["Costo"], numeros[0]
-
     actualizar_celda("inventario", p["_row"], "Costo", costo_nuevo)
     actualizar_celda("inventario", p["_row"], "Precio_venta_actual", precio_nuevo)
     margen = round((precio_nuevo - costo_nuevo) / costo_nuevo, 6) if costo_nuevo else 0
     actualizar_celda("inventario", p["_row"], "Margen", margen)
     actualizar_celda("inventario", p["_row"], "Ultima_actualizacion", ahora)
     actualizar_celda("inventario", p["_row"], "Actualizado_por", usuario_nombre)
-
     return (f"Actualizado: {p['Nombre_completo']} -> "
             f"Costo: {fmt_money(costo_nuevo)} | Precio venta: {fmt_money(precio_nuevo)}")
-
 
 def manejar_ganancias(texto_norm=None):
     if texto_norm:
@@ -1896,10 +1642,8 @@ def manejar_ganancias(texto_norm=None):
             fecha_fin = hoy_dt.isoformat()
             etiqueta = f"el año ({fecha_inicio} al {fecha_fin})"
             return _formatear_resumen_periodo(etiqueta, fecha_inicio, fecha_fin)
-
     resumen = actualizar_hoja_ganancias()
     hoy = date.today().isoformat()
-
     if resumen:
         return (f"📈 Resumen de hoy ({hoy}):\n"
                 f"Ventas: {fmt_money(resumen['ventas'])}\n"
@@ -1910,19 +1654,15 @@ def manejar_ganancias(texto_norm=None):
                 f"💚 Extra: {fmt_money(resumen['extras'])}\n"
                 f"Producto mas vendido: {resumen['producto_top'] if resumen['producto_top'] else 'Ninguno'}\n"
                 f"Vendedor top: {resumen['vendedor_top'] if resumen['vendedor_top'] else 'Ninguno'}")
-
     hoja = ws("ganancias")
     filas = hoja.get_all_values(value_render_option="UNFORMATTED_VALUE")
-
     fila_hoy = None
     for f in filas[1:]:
         if f and fecha_a_iso(f[0]) == hoy:
             fila_hoy = f
             break
-
     if not fila_hoy:
         return f"No hay datos para hoy ({hoy})"
-
     total_ventas = parse_decimal(fila_hoy[1]) if len(fila_hoy) > 1 else 0
     total_costos = parse_decimal(fila_hoy[2]) if len(fila_hoy) > 2 else 0
     ganancia_neta = parse_decimal(fila_hoy[3]) if len(fila_hoy) > 3 else 0
@@ -1931,7 +1671,6 @@ def manejar_ganancias(texto_norm=None):
     extra = parse_decimal(fila_hoy[6]) if len(fila_hoy) > 6 else 0
     producto_top = fila_hoy[7] if len(fila_hoy) > 7 else ""
     vendedor_top = fila_hoy[8] if len(fila_hoy) > 8 else ""
-
     return (f"📈 Resumen de hoy ({hoy}):\n"
             f"Ventas: {fmt_money(total_ventas)}\n"
             f"Costos: {fmt_money(total_costos)}\n"
@@ -1942,12 +1681,10 @@ def manejar_ganancias(texto_norm=None):
             f"Producto mas vendido: {producto_top if producto_top else 'Ninguno'}\n"
             f"Vendedor top: {vendedor_top if vendedor_top else 'Ninguno'}")
 
-
 def _formatear_resumen_periodo(etiqueta, fecha_inicio, fecha_fin):
     resumen = calcular_resumen_periodo(fecha_inicio, fecha_fin)
     if not resumen or resumen["dias_con_datos"] == 0:
         return f"📊 No hay datos registrados para {etiqueta}."
-
     return (f"📊 Resumen de {etiqueta}:\n"
             f"Ventas: {fmt_money(resumen['ventas'])}\n"
             f"Costos: {fmt_money(resumen['costos'])}\n"
@@ -1958,31 +1695,26 @@ def _formatear_resumen_periodo(etiqueta, fecha_inicio, fecha_fin):
             f"Producto mas vendido: {resumen['producto_top'] if resumen['producto_top'] else 'Ninguno'}\n"
             f"Vendedor top: {resumen['vendedor_top'] if resumen['vendedor_top'] else 'Ninguno'}")
 
-
 def manejar_recomendar(texto_norm):
     nombre_producto = extraer_nombre_producto(texto_norm, INTENCIONES["recomendar"])
     if not nombre_producto:
         return "Para que producto quieres una recomendacion?"
-
     productos = leer_inventario()
     estado, resultado = buscar_producto(nombre_producto, productos)
     if estado == "multiple":
         return "Encontre varias opciones:\n" + formatear_lista_productos(resultado)
     if estado == "no_encontrado":
         return f"No encontre '{nombre_producto}'."
-
     p = resultado
     costo = p["Costo"]
     precio_actual = p["Precio_venta_actual"]
     sugerido_60 = round(costo * 1.6, 2)
     sugerido_80 = round(costo * 1.8, 2)
-    
     respuesta_base = (f"Recomendacion para {p['Nombre_completo']}:\n"
                       f"Costo actual: {fmt_money(costo)}\n"
                       f"Precio actual: {fmt_money(precio_actual)}\n"
                       f"Sugerido (60% margen): {fmt_money(sugerido_60)}\n"
                       f"Sugerido (80% margen): {fmt_money(sugerido_80)}")
-    
     try:
         margenes = ws("configuracion_margenes").get_all_records(value_render_option="UNFORMATTED_VALUE")
         margen_categoria = next((m for m in margenes if m.get("Categoria") == p.get("Categoria")), None)
@@ -1991,12 +1723,10 @@ def manejar_recomendar(texto_norm):
     except Exception:
         return respuesta_base
 
-
 async def procesar_historial_seleccionado(update, context, producto, args):
     p = producto
     respuesta = _generar_historial_por_sku(p["SKU"], p["Nombre_completo"])
     await update.message.reply_text(respuesta, parse_mode=None)
-
 
 def _generar_historial_por_sku(sku, nombre_completo):
     try:
@@ -2004,7 +1734,6 @@ def _generar_historial_por_sku(sku, nombre_completo):
     except Exception as e:
         log.warning(f"No se pudo leer movimientos para historial: {e}")
         return f"No pude leer el historial de {nombre_completo} en este momento."
-
     compras = []
     ventas = []
     for fila in filas[1:]:
@@ -2019,39 +1748,31 @@ def _generar_historial_por_sku(sku, nombre_completo):
             compras.append(registro)
         elif tipo == "venta":
             ventas.append(registro)
-
     compras.sort(key=lambda r: r[0], reverse=True)
     ventas.sort(key=lambda r: r[0], reverse=True)
     compras = compras[:5]
     ventas = ventas[:5]
-
     lineas = [f"📜 Historial de {nombre_completo} (SKU {sku}):"]
-
     lineas.append("📦 Compras:")
     if compras:
         for fecha_f, cantidad, precio in compras:
             lineas.append(f"• {fecha_f}: {parse_int(cantidad)} unid. @ {fmt_money(precio)}")
     else:
         lineas.append("• Sin compras registradas.")
-
     lineas.append("💰 Ventas:")
     if ventas:
         for fecha_f, cantidad, precio in ventas:
             lineas.append(f"• {fecha_f}: {parse_int(cantidad)} unid. @ {fmt_money(precio)}")
     else:
         lineas.append("• Sin ventas registradas.")
-
     return "\n".join(lineas)
-
 
 def manejar_historial(texto_norm, chat_id=None):
     nombre_producto = extraer_nombre_producto(texto_norm, INTENCIONES["historial"])
     if not nombre_producto:
         return "Historial de que producto? Ej: 'historial arboles'."
-
     productos = leer_inventario()
     estado, resultado = buscar_producto(nombre_producto, productos, umbral=0.75)
-
     if estado == "multiple":
         if chat_id is not None:
             CONTEXTO_SELECCION[chat_id] = {
@@ -2064,10 +1785,8 @@ def manejar_historial(texto_norm, chat_id=None):
                 "\n\nEscribe el numero del producto que quieres.")
     if estado == "no_encontrado":
         return f"No encontre '{nombre_producto}'."
-
     p = resultado
     return _generar_historial_por_sku(p["SKU"], p["Nombre_completo"])
-
 
 def manejar_ayuda():
     return (
@@ -2102,14 +1821,11 @@ def manejar_ayuda():
         "• '/reset <contrasena>' -> archiva y limpia el mes actual (no toca inventario)\n"
     )
 
-
 async def handle_seleccion_numero(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     texto = update.message.text.strip()
-
     if chat_id not in CONTEXTO_SELECCION:
         return False
-
     try:
         idx = int(texto) - 1
         datos = CONTEXTO_SELECCION[chat_id]
@@ -2122,7 +1838,6 @@ async def handle_seleccion_numero(update: Update, context: ContextTypes.DEFAULT_
     except Exception:
         pass
     return False
-
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     log.info(f"Mensaje recibido de {update.effective_user.username}: {update.message.text}")
@@ -2257,7 +1972,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                            texto, respuesta, tiempo_total)
     )
 
-
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if ACCESS_PASSWORD is None:
         await update.message.reply_text(
@@ -2272,10 +1986,8 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode=None
     )
 
-
 async def cmd_ayuda(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(manejar_ayuda(), parse_mode=None)
-
 
 async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
@@ -2287,52 +1999,70 @@ async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     respuesta = await asyncio.to_thread(ejecutar_reset_mensual, usuario_nombre)
     await update.message.reply_text(respuesta, parse_mode=None)
 
+# ==================== WEBHOOK (NUEVO) ====================
+app = None  # Variable global para la aplicación de Telegram
 
-# ============================================================
-# NUEVO BLOQUE: Servidor Flask + bot en hilo separado
-# ============================================================
-
+# ==================== FLASK ====================
 flask_app = Flask(__name__)
 
 @flask_app.route('/')
 def home():
-    return "Bot de Inventario Lumin funcionando correctamente ✅"
+    return "Bot de Inventario Lumin funcionando con Webhook ✅"
 
 @flask_app.route('/ping')
 def ping():
     return "pong", 200
 
-def run_flask():
-    port = int(os.environ.get("PORT", 10000))
-    flask_app.run(host="0.0.0.0", port=port)
+@flask_app.route('/webhook', methods=['POST'])
+async def webhook():
+    """Recibe los updates de Telegram vía webhook."""
+    if request.method == 'POST':
+        try:
+            update = Update.de_json(request.get_json(force=True), app.bot)
+            await app.process_update(update)
+            return 'OK', 200
+        except Exception as e:
+            log.error(f"Error en webhook: {e}")
+            return 'Error', 500
+    return 'Method not allowed', 405
 
-def run_bot():
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    
+async def setup_webhook():
+    """Configura el webhook en Telegram."""
+    if not WEBHOOK_URL:
+        log.error("WEBHOOK_URL no está definida en variables de entorno.")
+        return False
+    webhook_endpoint = f"{WEBHOOK_URL}/webhook"
+    log.info(f"Configurando webhook en: {webhook_endpoint}")
+    try:
+        await app.bot.set_webhook(
+            url=webhook_endpoint,
+            drop_pending_updates=True
+        )
+        log.info("✅ Webhook configurado correctamente.")
+        return True
+    except Exception as e:
+        log.error(f"Error configurando webhook: {e}")
+        return False
+
+def main():
+    global app
+    # Crear la aplicación de Telegram
     app = Application.builder().token(TELEGRAM_TOKEN).build()
+    
+    # Registrar todos los handlers
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler(["ayuda", "help"], cmd_ayuda))
     app.add_handler(CommandHandler("reset", cmd_reset))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # 🔥 Forzar eliminación del webhook
-    loop.run_until_complete(app.bot.delete_webhook(drop_pending_updates=True))
+    # Configurar webhook
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(setup_webhook())
     
-    log.info("✅ Bot iniciado. Esperando mensajes...")
-    
-    loop.run_until_complete(app.initialize())
-    loop.run_until_complete(app.start())
-    
-    log.info("🔄 Iniciando polling...")
-    loop.run_forever()
-
-def main():
-    # Iniciar el bot en un hilo separado
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-    # Iniciar Flask en el hilo principal (bloquea)
-    run_flask()
+    # Iniciar Flask (el webhook recibe los mensajes)
+    port = int(os.environ.get("PORT", 10000))
+    flask_app.run(host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
     main()
