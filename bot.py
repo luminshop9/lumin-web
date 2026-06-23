@@ -16,6 +16,7 @@ import unicodedata
 import logging
 import asyncio
 import difflib
+import threading          # <--- NUEVO
 from datetime import datetime, date, timedelta
 from typing import List, Dict, Optional, Tuple, Any
 from collections import defaultdict
@@ -23,6 +24,7 @@ from collections import defaultdict
 import gspread
 from google.oauth2.service_account import Credentials
 from groq import Groq
+from flask import Flask   # <--- NUEVO
 
 from telegram import Update
 from telegram.ext import (
@@ -2321,22 +2323,50 @@ async def cmd_reset(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(respuesta, parse_mode=None)
 
 
-def main():
+# ============================================================
+# NUEVO BLOQUE: Servidor Flask + bot en hilo separado
+# ============================================================
+from flask import Flask   # ya lo importamos al principio, pero aquí se usa
+
+flask_app = Flask(__name__)
+
+@flask_app.route('/')
+def home():
+    return "Bot de Inventario Lumin funcionando correctamente ✅"
+
+@flask_app.route('/ping')
+def ping():
+    return "pong", 200
+
+def run_flask():
+    port = int(os.environ.get("PORT", 10000))
+    flask_app.run(host="0.0.0.0", port=port)
+
+def run_bot():
+    # Crear un nuevo event loop para este hilo
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    # Construir la aplicación del bot
     app = Application.builder().token(TELEGRAM_TOKEN).build()
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler(["ayuda", "help"], cmd_ayuda))
     app.add_handler(CommandHandler("reset", cmd_reset))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    
     log.info("Bot iniciado. Esperando mensajes...")
-    app.run_polling(drop_pending_updates=True)
+    
+    # Iniciar el bot y mantenerlo corriendo
+    loop.run_until_complete(app.initialize())
+    loop.run_until_complete(app.start())
+    loop.run_forever()
 
+def main():
+    # Iniciar el bot en un hilo separado
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+    # Iniciar Flask en el hilo principal (bloquea)
+    run_flask()
 
 if __name__ == "__main__":
-    # Crear loop y ejecutar main dentro de él
-    try:
-        loop = asyncio.get_event_loop()
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-    loop.run_until_complete(asyncio.to_thread(main))  # o simplemente main() si no es async
     main()
