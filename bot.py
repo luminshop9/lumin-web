@@ -2332,4 +2332,11 @@ def main():
 
 
 if __name__ == "__main__":
+    # Crear loop y ejecutar main dentro de él
+    try:
+        loop = asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    loop.run_until_complete(asyncio.to_thread(main))  # o simplemente main() si no es async
     main()
