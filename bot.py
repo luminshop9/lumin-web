@@ -828,48 +828,50 @@ def parsear_compra(texto_normalizado):
         forzar_nuevo = True
         resto = m_marca.group(2).strip()
 
-    # Detectar c<numero> y v<numero> como etiquetas explicitas en todo el texto
-    # CORRECCION COMA DECIMAL: acepta coma o punto como separador decimal
+    # Detectar c<numero> y v<numero> en todo el texto (incluso con espacios)
     costo = None
     precio_venta = None
-    
-    # Buscar c<numero> y v<numero> en todo el texto (acepta coma o punto decimal)
+
+    # Buscar c<numero> y v<numero> en el texto (acepta coma o punto decimal)
     m_c = re.search(r'\bc[:\-]?\s*(\d+(?:[.,]\d+)?)', resto, re.IGNORECASE)
     m_v = re.search(r'\bv[:\-]?\s*(\d+(?:[.,]\d+)?)', resto, re.IGNORECASE)
     if m_c:
         costo = parse_decimal(m_c.group(1))
     if m_v:
         precio_venta = parse_decimal(m_v.group(1))
-    
-    # Eliminar las etiquetas c<numero> y v<numero> del texto para extraer el nombre
-    # CORRECCION COMA DECIMAL: regex acepta coma o punto
+
+    # Eliminar las etiquetas c<numero> y v<numero> del texto
     resto_sin_cv = re.sub(r'\b[cv][:\-]?\s*\d+(?:[.,]\d+)?', '', resto, flags=re.IGNORECASE)
     resto_sin_cv = re.sub(r'\s+', ' ', resto_sin_cv).strip()
 
+    # Dividir por comas para obtener partes
     partes = [limpiar_segmento(p) for p in resto_sin_cv.split(",")]
     partes = [p for p in partes if p]
+
     if not partes:
         return None
 
+    # La primera parte debe tener "cantidad nombre"
     primera = partes[0]
     m_cant = re.match(r"^(\d+(?:\.\d+)?)\s+(.+)$", primera)
     if m_cant:
         cantidad = parse_decimal(m_cant.group(1))
         nombre = m_cant.group(2).strip()
     else:
+        # Si no hay cantidad, intentar tomar todo como nombre
         cantidad = 1.0
         nombre = primera
 
     if not nombre:
         return None
 
-    # Si no se detectaron c/v explicitas, buscar numeros sueltos
+    # Si costo o precio_venta no se detectaron, buscar números sueltos en las partes restantes
     sueltos = []
     if costo is None or precio_venta is None:
         for seg in partes[1:]:
             seg_l = seg.lower().strip()
-            # CORRECCION COMA DECIMAL: acepta coma o punto en etiquetas c/v
-            m_tag = re.match(r"^([cv])\s*[:\-]?\s*(\d+(?:[.,]\d+)?)$", seg_l)
+            # Intentar encontrar c<numero> o v<numero> en el segmento (con espacios)
+            m_tag = re.search(r'^([cv])\s*[:\-]?\s*(\d+(?:[.,]\d+)?)$', seg_l)
             if m_tag:
                 valor = parse_decimal(m_tag.group(2))
                 if m_tag.group(1) == "c":
@@ -877,6 +879,7 @@ def parsear_compra(texto_normalizado):
                 else:
                     precio_venta = valor
                 continue
+            # Si no, buscar número suelto
             m_num = re.match(r"^(\d+(?:\.\d+)?)$", seg_l)
             if m_num:
                 sueltos.append(parse_decimal(m_num.group(1)))
