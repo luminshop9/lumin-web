@@ -828,11 +828,10 @@ def parsear_compra(texto_normalizado):
         forzar_nuevo = True
         resto = m_marca.group(2).strip()
 
-    # Detectar c<numero> y v<numero> en todo el texto (incluso con espacios)
     costo = None
     precio_venta = None
 
-    # Buscar c<numero> y v<numero> en el texto (acepta coma o punto decimal)
+    # Detectar c<numero> y v<numero> (con o sin espacio después de c/v)
     m_c = re.search(r'\bc[:\-]?\s*(\d+(?:[.,]\d+)?)', resto, re.IGNORECASE)
     m_v = re.search(r'\bv[:\-]?\s*(\d+(?:[.,]\d+)?)', resto, re.IGNORECASE)
     if m_c:
@@ -844,76 +843,69 @@ def parsear_compra(texto_normalizado):
     resto_sin_cv = re.sub(r'\b[cv][:\-]?\s*\d+(?:[.,]\d+)?', '', resto, flags=re.IGNORECASE)
     resto_sin_cv = re.sub(r'\s+', ' ', resto_sin_cv).strip()
 
-    # Dividir por comas para obtener partes
-    partes = [limpiar_segmento(p) for p in resto_sin_cv.split(",")]
-    partes = [p for p in partes if p]
+    # Dividir por comas (pero no si la coma está dentro de un número)
+    # Usamos una separación más inteligente: dividir por coma, pero respetando que los números no se corten
+    partes_raw = re.split(r',\s*', resto_sin_cv)
+    partes = [limpiar_segmento(p) for p in partes_raw if limpiar_segmento(p)]
 
     if not partes:
         return None
 
-    # La primera parte debe tener "cantidad nombre"
     primera = partes[0]
+    # Intentar extraer "cantidad nombre" de la primera parte
     m_cant = re.match(r"^(\d+(?:\.\d+)?)\s+(.+)$", primera)
     if m_cant:
         cantidad = parse_decimal(m_cant.group(1))
         nombre = m_cant.group(2).strip()
     else:
-        # Si no hay cantidad, intentar tomar todo como nombre
+        # Si no hay cantidad, tomar todo como nombre
         cantidad = 1.0
         nombre = primera
 
     if not nombre:
         return None
 
-    # Si costo o precio_venta no se detectaron, buscar números sueltos en las partes restantes
-    sueltos = []
-    if costo is None or precio_venta is None:
-        for seg in partes[1:]:
-            seg_l = seg.lower().strip()
-            # Intentar encontrar c<numero> o v<numero> en el segmento (con espacios)
-            m_tag = re.search(r'^([cv])\s*[:\-]?\s*(\d+(?:[.,]\d+)?)$', seg_l)
-            if m_tag:
-                valor = parse_decimal(m_tag.group(2))
-                if m_tag.group(1) == "c":
-                    costo = valor
-                else:
-                    precio_venta = valor
-                continue
-            # Si no, buscar número suelto
-            m_num = re.match(r"^(\d+(?:\.\d+)?)$", seg_l)
-            if m_num:
-                sueltos.append(parse_decimal(m_num.group(1)))
+    # Buscar números sueltos en las partes restantes (para costo y precio)
+    numeros_sueltos = []
+    for seg in partes[1:]:
+        seg_limpio = seg.strip()
+        # Intentar extraer número puro
+        m_num = re.match(r"^(\d+(?:\.\d+)?)$", seg_limpio)
+        if m_num:
+            numeros_sueltos.append(parse_decimal(m_num.group(1)))
 
-    it = iter(sueltos)
-    if costo is None:
-        costo = next(it, None)
-    if precio_venta is None:
-        precio_venta = next(it, None)
+    # Asignar costo y precio venta de los números sueltos (orden: primero costo, luego precio)
+    if costo is None and numeros_sueltos:
+        costo = numeros_sueltos[0] if len(numeros_sueltos) > 0 else None
+    if precio_venta is None and len(numeros_sueltos) > 1:
+        precio_venta = numeros_sueltos[1]
 
-    return {"cantidad": cantidad, "nombre": nombre, "costo": costo,
-            "precio_venta": precio_venta, "forzar_nuevo": forzar_nuevo}
+    return {
+        "cantidad": cantidad,
+        "nombre": nombre,
+        "costo": costo,
+        "precio_venta": precio_venta,
+        "forzar_nuevo": forzar_nuevo
+    }
 
 
 def parsear_items_multiples(resto):
-    segmentos_brutos = re.split(r",|\s+y\s+", resto)
+    # Separar por " y " o por coma
+    # Primero reemplazar " y " por un separador único
+    resto = re.sub(r'\s+y\s+', '|||', resto)
+    # También separar por coma
+    partes = re.split(r',\s*|\|\|\|', resto)
     items = []
-    for seg in segmentos_brutos:
+    for seg in partes:
         seg = limpiar_segmento(seg)
         if not seg:
             continue
-        m = re.match(r"^(\d+(?:\.\d+)?)\s+(.+)$", seg)
-        if not m:
-            continue
-        cantidad = parse_decimal(m.group(1))
-        resto_seg = m.group(2).strip()
-        precio = None
-        m_a = re.search(r"\s+a\s+(\d+(?:\.\d+)?)$", resto_seg)
-        if m_a:
-            nombre = resto_seg[:m_a.start()].strip()
-            precio = parse_decimal(m_a.group(1))
-        else:
-            nombre = resto_seg
-        if nombre:
+        # Intentar extraer "cantidad nombre a precio"
+        m = re.match(r"^(\d+(?:\.\d+)?)\s+(.+?)(?:\s+a\s+(\d+(?:\.\d+)?))?$", seg)
+        if m:
+            cantidad = parse_decimal(m.group(1))
+            nombre = m.group(2).strip()
+            precio = parse_decimal(m.group(3)) if m.group(3) else None
             items.append({"cantidad": cantidad, "nombre": nombre, "precio": precio})
     return items
 
@@ -1664,8 +1656,18 @@ def manejar_confirmar(texto_norm, chat_id, usuario_nombre):
     if not pendiente:
         return "🧾 No tienes ninguna proforma pendiente. Crea una primero: 'proforma 2 arboles'."
 
+    # Extraer números (incluye decimales)
     numeros = extraer_numeros(quitar_palabras_intencion(texto_norm, INTENCIONES["confirmar"]))
-    total_real, pago = (numeros[0], numeros[1]) if len(numeros) >= 2 else (None, numeros[0] if numeros else None)
+    
+    # Ahora soporta decimales
+    total_real = None
+    pago = None
+    if len(numeros) >= 2:
+        total_real = numeros[0]
+        pago = numeros[1]
+    elif len(numeros) == 1:
+        # Si solo hay un número, lo tomamos como pago (mantiene compatibilidad con versiones anteriores)
+        pago = numeros[0]
 
     productos = leer_inventario()
     lineas = []
