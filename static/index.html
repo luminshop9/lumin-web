@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        /* ======== DISEÑO ORIGINAL RECUPERADO ======== */
+        /* ======== DISEÑO ORIGINAL (RECUPERADO) ======== */
         :root {
             --primary: #8B5CF6;
             --primary-light: #A78BFA;
@@ -442,7 +442,7 @@
                 </div>
             </div>
 
-            <!-- ======== CIERRE DE CAJA ======== -->
+            <!-- ======== CIERRE DE CAJA (con botón Anular) ======== -->
             <div class="section" id="section-cierre">
                 <div class="top-bar"><div class="top-bar-title"><h1>Cierre de Caja</h1><p>Resumen de ingresos y gastos</p></div></div>
                 <div class="section-card">
@@ -597,6 +597,7 @@
         </div>
     </div>
 
+    <!-- ======== JAVASCRIPT COMPLETO ======== -->
     <script>
     // ============================================================
     //  CONFIGURACIÓN
@@ -614,7 +615,7 @@
     let ultimaBoletaId = null;
 
     // ============================================================
-    //  SESIÓN PERSISTENTE (no pide pass al recargar)
+    //  SESIÓN PERSISTENTE
     // ============================================================
     function checkSession() {
         const logged = localStorage.getItem('lumin_logged');
@@ -743,7 +744,7 @@
                 container.innerHTML = html;
             }
 
-            // Rentabilidad
+            // Rentabilidad (datos generales de ganancias)
             if (ganancias.fecha) {
                 document.getElementById('rentIngresos').textContent = formatMoney(ganancias.ventas || 0);
                 document.getElementById('rentGastos').textContent = formatMoney(ganancias.costos || 0);
@@ -945,7 +946,6 @@
                 document.getElementById('boletaLogo').innerHTML = '';
             }
 
-            // Cliente
             if (data.cliente) {
                 document.getElementById('boletaCliente').style.display = 'block';
                 document.getElementById('boletaClienteNombre').textContent = data.cliente;
@@ -1000,7 +1000,9 @@
                 <td><div class="stock-indicator"><div class="stock-bar"><div class="stock-bar-fill ${stockClass}" style="width:${Math.min(100, (stock / (min * 3)) * 100)}%"></div></div><span>${stock}</span></div></td>
                 <td>${min}</td>
                 <td>${p.Proveedor || ''}</td>
-                <td><button class="btn-icon btn-small" onclick="openEditModal('${p.SKU}')" title="Editar"><i class="fas fa-edit" style="font-size:12px"></i></button></td>
+                <td>
+                    <button class="btn-icon btn-small" onclick="openEditModal('${p.SKU}')" title="Editar"><i class="fas fa-edit" style="font-size:12px"></i></button>
+                </td>
             </tr>`;
         }).join('');
     }
@@ -1095,7 +1097,7 @@
     }
 
     // ============================================================
-    //  ANULAR VENTA (usando boleta_id desde movimientos.Referencia)
+    //  ANULAR VENTA
     // ============================================================
     async function anularVenta(boletaId) {
         if (!boletaId) {
@@ -1127,7 +1129,7 @@
     }
 
     // ============================================================
-    //  CIERRE DE CAJA
+    //  CIERRE DE CAJA (con botón Anular)
     // ============================================================
     function updateCierre() {
         const periodo = document.getElementById('cierrePeriodo').value;
@@ -1189,7 +1191,7 @@
                     <td>${formatMoney(m.Precio_unitario || 0)}</td>
                     <td>${formatMoney(m.Total || 0)}</td>
                     <td><span class="badge ${esVenta ? 'badge-success' : 'badge-warning'}">${m.Tipo || ''}</span></td>
-                    <td>${esVenta ? `<button class="btn-icon btn-small" onclick="anularVenta(${boletaId})" title="Anular" style="color:var(--danger);"><i class="fas fa-ban" style="font-size:12px"></i></button>` : ''}</td>
+                    <td>${esVenta && boletaId ? `<button class="btn-icon btn-small" onclick="anularVenta(${boletaId})" title="Anular" style="color:var(--danger);"><i class="fas fa-ban" style="font-size:12px"></i></button>` : ''}</td>
                 </tr>`;
             }).join('');
         }
@@ -1249,7 +1251,7 @@
     }
 
     // ============================================================
-    //  CHAT IA MEJORADO
+    //  CHAT IA
     // ============================================================
     function sendChat() {
         const input = document.getElementById('chatInput');
@@ -1332,9 +1334,8 @@
 
         if (lower.includes('cuánto debo vender') || lower.includes('meta')) {
             const hoy = new Date();
-            const diasMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
-            const ventas = movimientos.filter(m => m.Tipo === 'venta' && m.Fecha && m.Fecha.startsWith(hoy.toISOString().split('T')[0]));
-            const totalHoy = ventas.reduce((s, m) => s + parseFloat(m.Total || 0), 0);
+            const ventasHoy = movimientos.filter(m => m.Tipo === 'venta' && m.Fecha && m.Fecha.startsWith(hoy.toISOString().split('T')[0]));
+            const totalHoy = ventasHoy.reduce((s, m) => s + parseFloat(m.Total || 0), 0);
             const metaDiaria = parseFloat(localStorage.getItem('lumin_metaDiaria')) || 100;
             const restante = metaDiaria - totalHoy;
             return `<strong>🎯 Meta de ventas diaria:</strong> ${formatMoney(metaDiaria)}<br>
