@@ -9,9 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        /* ============================================================
-           DISEÑO ORIGINAL RECUPERADO (con todas las mejoras)
-           ============================================================ */
+        /* ======== DISEÑO ORIGINAL RECUPERADO ======== */
         :root {
             --primary: #8B5CF6;
             --primary-light: #A78BFA;
@@ -599,7 +597,6 @@
         </div>
     </div>
 
-    <!-- ======== JAVASCRIPT COMPLETO ======== -->
     <script>
     // ============================================================
     //  CONFIGURACIÓN
@@ -746,7 +743,7 @@
                 container.innerHTML = html;
             }
 
-            // Rentabilidad desde ganancias
+            // Rentabilidad
             if (ganancias.fecha) {
                 document.getElementById('rentIngresos').textContent = formatMoney(ganancias.ventas || 0);
                 document.getElementById('rentGastos').textContent = formatMoney(ganancias.costos || 0);
@@ -1098,7 +1095,7 @@
     }
 
     // ============================================================
-    //  ANULAR VENTA
+    //  ANULAR VENTA (usando boleta_id desde movimientos.Referencia)
     // ============================================================
     async function anularVenta(boletaId) {
         if (!boletaId) {
@@ -1204,7 +1201,7 @@
     function updateRentabilidad() {
         // Filtrar solo ventas
         const ventas = movimientos.filter(m => m.Tipo === 'venta');
-
+        
         // Agrupar por SKU o Producto
         const prodCount = {};
         ventas.forEach(m => {
