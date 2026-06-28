@@ -6,6 +6,9 @@ Fecha: 2026-06-24 - CON MEJORAS ESTÉTICAS Y FUNCIONES COMPLETAS
 """
 
 import os
+from dotenv import load_dotenv
+load_dotenv()
+
 import re
 import json
 import time
@@ -2133,15 +2136,9 @@ def run_bot():
     loop.run_until_complete(app.initialize())
     loop.run_until_complete(app.start())
 
-    webhook_endpoint = f"{WEBHOOK_URL}/webhook"
-    log.info(f"Configurando webhook en: {webhook_endpoint}")
-    loop.run_until_complete(app.bot.set_webhook(
-        url=webhook_endpoint,
-        drop_pending_updates=True
-    ))
-    log.info("✅ Webhook configurado correctamente.")
-    log.info("✅ Bot listo y esperando mensajes via webhook...")
-    loop.run_forever()
+    # === MODO POLLING (para pruebas locales) ===
+    log.info("🚀 Iniciando en modo POLLING (para pruebas locales)...")
+    loop.run_until_complete(app.run_polling())
 
 def main():
     bot_thread = threading.Thread(target=run_bot, daemon=True)
@@ -2150,4 +2147,4 @@ def main():
     flask_app.run(host="0.0.0.0", port=port)
 
 if __name__ == "__main__":
-    main()
+    run_bot()

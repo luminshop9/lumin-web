@@ -2,3 +2,4 @@
 creds_nuevo.json
 __pycache__/
 *.pyc
+.vercel
