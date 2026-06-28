@@ -24,7 +24,11 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-# ==================== AUTENTICACIÓN ====================
+# ==================== AUTENTICACIÓN ROBUSTA ====================
+gc = None
+spreadsheet = None
+autenticado = False
+
 try:
     if GOOGLE_CREDS:
         creds_dict = json.loads(GOOGLE_CREDS)
@@ -35,11 +39,11 @@ try:
         print("✅ Autenticación con archivo CREDS_FILE")
     gc = gspread.authorize(creds)
     spreadsheet = gc.open_by_key(GOOGLE_SHEET_ID)
+    autenticado = True
     print("✅ Conexión a Google Sheets exitosa")
 except Exception as e:
     print(f"❌ Error de autenticación: {e}")
-    spreadsheet = None
-    gc = None
+    autenticado = False
 
 # ==================== FUNCIONES DE UTILIDAD ====================
 def get_worksheet(name):
@@ -119,8 +123,8 @@ def favicon():
 
 @app.route('/api/inventario')
 def api_inventario():
-    if spreadsheet is None:
-        return jsonify({"error": "No conectado"}), 500
+    if not autenticado or spreadsheet is None:
+        return jsonify([])  # Devuelve vacío en lugar de error
     hoja = get_worksheet('inventario')
     if hoja is None:
         return jsonify([])
@@ -134,7 +138,7 @@ def api_inventario():
 
 @app.route('/api/movimientos')
 def api_movimientos():
-    if spreadsheet is None:
+    if not autenticado or spreadsheet is None:
         return jsonify([])
     hoja = get_worksheet('movimientos')
     if hoja is None:
@@ -145,7 +149,7 @@ def api_movimientos():
 
 @app.route('/api/ventas/hoy')
 def api_ventas_hoy():
-    if spreadsheet is None:
+    if not autenticado or spreadsheet is None:
         return jsonify({"total": 0, "cantidad_items": 0, "transacciones": 0})
     hoy = date.today().isoformat()
     hoja = get_worksheet('ventas')
@@ -163,7 +167,7 @@ def api_ventas_hoy():
 
 @app.route('/api/stock/bajo')
 def api_stock_bajo():
-    if spreadsheet is None:
+    if not autenticado or spreadsheet is None:
         return jsonify([])
     hoja = get_worksheet('inventario')
     if hoja is None:
@@ -185,7 +189,7 @@ def api_stock_bajo():
 
 @app.route('/api/ganancias/resumen')
 def api_ganancias_resumen():
-    if spreadsheet is None:
+    if not autenticado or spreadsheet is None:
         return jsonify({})
     hoja = get_worksheet('ganancias')
     if hoja is None:
@@ -216,8 +220,8 @@ def api_sugerir_precio():
 
 @app.route('/api/producto', methods=['POST'])
 def api_crear_producto():
-    if spreadsheet is None:
-        return jsonify({"error": "No conectado"}), 500
+    if not autenticado or spreadsheet is None:
+        return jsonify({"error": "No conectado a Google Sheets"}), 500
     data = request.get_json()
     sku = data.get('sku', '').strip()
     nombre = data.get('nombre', '').strip()
@@ -233,6 +237,8 @@ def api_crear_producto():
         return jsonify({"error": "Costo debe ser mayor a 0"}), 400
 
     hoja_inv = get_worksheet('inventario')
+    if hoja_inv is None:
+        return jsonify({"error": "Hoja inventario no encontrada"}), 404
     registros = hoja_inv.get_all_records()
     if not sku:
         sku = generar_sku(nombre)
@@ -259,7 +265,7 @@ def api_crear_producto():
 
 @app.route('/api/actualizar-producto', methods=['PUT'])
 def api_actualizar_producto():
-    if spreadsheet is None:
+    if not autenticado or spreadsheet is None:
         return jsonify({"error": "No conectado"}), 500
     data = request.get_json()
     sku = data.get('sku')
@@ -267,6 +273,8 @@ def api_actualizar_producto():
     stock = parse_int(data.get('stock', 0))
 
     hoja_inv = get_worksheet('inventario')
+    if hoja_inv is None:
+        return jsonify({"error": "Hoja inventario no encontrada"}), 404
     filas = hoja_inv.get_all_values()
     for i, fila in enumerate(filas):
         if fila and fila[0] == sku:
@@ -281,11 +289,11 @@ def api_actualizar_producto():
 
 @app.route('/api/boleta/<int:boleta_id>')
 def api_boleta(boleta_id):
-    if spreadsheet is None:
+    if not autenticado or spreadsheet is None:
         return jsonify({"error": "No conectado"}), 500
     hoja = get_worksheet('boletas')
     if hoja is None:
-        return jsonify({"error": "Hoja no encontrada"}), 404
+        return jsonify({"error": "Hoja boletas no encontrada"}), 404
     registros = hoja.get_all_records()
     items = [r for r in registros if parse_int(r.get('ID_Boleta', 0)) == boleta_id]
     if not items:
@@ -304,9 +312,61 @@ def api_boleta(boleta_id):
         'cliente': items[0].get('Cliente', '') if items else ''
     })
 
+@app.route('/api/clientes')
+def api_clientes():
+    # Si no está autenticado o no existe la hoja clientes, devolver array vacío
+    if not autenticado or spreadsheet is None:
+        return jsonify([])
+    try:
+        hoja = get_worksheet('clientes')
+        if hoja is None:
+            return jsonify([])
+        registros = hoja.get_all_records()
+        return jsonify(registros)
+    except Exception as e:
+        print("Error en /api/clientes:", e)
+        return jsonify([])
+
+@app.route('/api/cliente', methods=['POST'])
+def api_guardar_cliente():
+    if not autenticado or spreadsheet is None:
+        return jsonify({"error": "No conectado"}), 500
+    data = request.get_json()
+    nombre = data.get('nombre', '').strip()
+    telefono = data.get('telefono', '').strip()
+    email = data.get('email', '').strip()
+    cliente_id = data.get('id', '')
+
+    if not nombre:
+        return jsonify({"error": "Nombre es obligatorio"}), 400
+
+    try:
+        hoja = get_worksheet('clientes')
+        if hoja is None:
+            return jsonify({"error": "Hoja clientes no encontrada"}), 404
+
+        if cliente_id:
+            # Buscar y actualizar
+            registros = hoja.get_all_records()
+            for i, r in enumerate(registros, start=2):
+                if str(r.get('id')) == str(cliente_id):
+                    hoja.update_cell(i, 2, nombre)
+                    hoja.update_cell(i, 3, telefono)
+                    hoja.update_cell(i, 4, email)
+                    return jsonify({"mensaje": "Cliente actualizado"})
+            return jsonify({"error": "Cliente no encontrado"}), 404
+        else:
+            # Nuevo cliente
+            nuevo_id = str(int(datetime.now().timestamp() * 1000))
+            hoja.append_row([nuevo_id, nombre, telefono, email, getToday()])
+            return jsonify({"mensaje": "Cliente creado", "id": nuevo_id})
+    except Exception as e:
+        print("Error en /api/cliente:", e)
+        return jsonify({"error": str(e)}), 500
+
 @app.route('/api/anular-venta', methods=['POST'])
 def api_anular_venta():
-    if spreadsheet is None:
+    if not autenticado or spreadsheet is None:
         return jsonify({"error": "No conectado"}), 500
     data = request.get_json()
     boleta_id = data.get('boleta_id')
@@ -316,6 +376,8 @@ def api_anular_venta():
         return jsonify({"error": "Falta número de boleta"}), 400
 
     hoja_boletas = get_worksheet('boletas')
+    if hoja_boletas is None:
+        return jsonify({"error": "Hoja boletas no encontrada"}), 404
     registros = hoja_boletas.get_all_records()
     items = [r for r in registros if parse_int(r.get('ID_Boleta', 0)) == boleta_id]
     if not items:
@@ -323,6 +385,8 @@ def api_anular_venta():
 
     # Revertir stock
     hoja_inv = get_worksheet('inventario')
+    if hoja_inv is None:
+        return jsonify({"error": "Hoja inventario no encontrada"}), 404
     for item in items:
         sku = item.get('SKU')
         cantidad = parse_int(item.get('Cantidad', 0))
@@ -336,17 +400,18 @@ def api_anular_venta():
                 hoja_inv.update_cell(i+1, 13, estado)
                 break
 
-    # Marcar en movimientos
+    # Registrar anulación
     hoja_mov = get_worksheet('movimientos')
-    hoja_mov.append_row([
-        ahora_iso(), '', 'venta_anulada', 0, 0, 0, f'Boleta #{boleta_id}', 'web_user', razon
-    ])
+    if hoja_mov is not None:
+        hoja_mov.append_row([
+            ahora_iso(), '', 'venta_anulada', 0, 0, 0, f'Boleta #{boleta_id}', 'web_user', razon
+        ])
 
     return jsonify({"mensaje": "Venta anulada correctamente"})
 
 @app.route('/api/venta', methods=['POST'])
 def api_registrar_venta():
-    if spreadsheet is None:
+    if not autenticado or spreadsheet is None:
         return jsonify({"error": "No conectado"}), 500
 
     data = request.get_json()
@@ -442,6 +507,9 @@ def api_registrar_venta():
         'boleta_id': id_boleta,
         'subtotal': subtotal
     })
+
+def getToday():
+    return date.today().isoformat()
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
