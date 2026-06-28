@@ -326,18 +326,17 @@ def api_anular_venta():
     for item in items:
         sku = item.get('SKU')
         cantidad = parse_int(item.get('Cantidad', 0))
-        # Buscar producto en inventario
         filas_inv = hoja_inv.get_all_values()
         for i, fila in enumerate(filas_inv):
             if fila and fila[0] == sku:
-                stock_actual = parse_int(fila[10])  # columna K (Stock_actual)
+                stock_actual = parse_int(fila[10])
                 nuevo_stock = stock_actual + cantidad
                 hoja_inv.update_cell(i+1, 11, nuevo_stock)
                 estado = "OK" if nuevo_stock > 5 else "Bajo"
                 hoja_inv.update_cell(i+1, 13, estado)
                 break
 
-    # Marcar en movimientos (añadir una fila de anulación)
+    # Marcar en movimientos
     hoja_mov = get_worksheet('movimientos')
     hoja_mov.append_row([
         ahora_iso(), '', 'venta_anulada', 0, 0, 0, f'Boleta #{boleta_id}', 'web_user', razon
