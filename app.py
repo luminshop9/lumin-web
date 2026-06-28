@@ -1,6 +1,8 @@
 import os
 import json
-from datetime import datetime, date
+import re
+import random
+from datetime import datetime, date, timedelta
 from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import gspread
@@ -22,7 +24,7 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-# ==================== AUTENTICACIÓN (SEGURA) ====================
+# ==================== AUTENTICACIÓN ====================
 try:
     if GOOGLE_CREDS:
         creds_dict = json.loads(GOOGLE_CREDS)
@@ -60,6 +62,39 @@ def fmt_money(val):
 def ahora_iso():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+def generar_sku(nombre):
+    base = re.sub(r"[^A-Za-z0-9]", "", nombre.upper())[:5] or "PROD"
+    sufijo = datetime.now().strftime("%d%H%M") + str(random.randint(10, 99))
+    return f"{base}-{sufijo}"
+
+def obtener_margenes():
+    """Devuelve dict de categoría -> margen_sugerido"""
+    try:
+        hoja = get_worksheet('configuracion_margenes')
+        if hoja is None:
+            return {}
+        registros = hoja.get_all_records()
+        margenes = {}
+        for r in registros:
+            cat = r.get('Categoria')
+            if cat:
+                margenes[cat] = {
+                    'min': parse_decimal(r.get('Margen_minimo', 0.3)),
+                    'sugerido': parse_decimal(r.get('Margen_sugerido', 0.5)),
+                    'max': parse_decimal(r.get('Margen_maximo', 0.8))
+                }
+        return margenes
+    except Exception as e:
+        print("Error leyendo configuracion_margenes:", e)
+        return {}
+
+def sugerir_precio(costo, categoria):
+    if costo <= 0:
+        return None
+    margenes = obtener_margenes()
+    margen = margenes.get(categoria, {}).get('sugerido', 0.5)
+    return round(costo * (1 + margen), 2)
+
 # ==================== ENDPOINTS ====================
 
 @app.route('/')
@@ -73,7 +108,7 @@ def favicon():
 @app.route('/api/inventario')
 def api_inventario():
     if spreadsheet is None:
-        return jsonify({"error": "No conectado a Google Sheets"}), 500
+        return jsonify({"error": "No conectado"}), 500
     hoja = get_worksheet('inventario')
     if hoja is None:
         return jsonify([])
@@ -94,7 +129,7 @@ def api_movimientos():
         return jsonify([])
     registros = hoja.get_all_records()
     registros.sort(key=lambda x: x.get('Fecha', ''), reverse=True)
-    return jsonify(registros[:200])
+    return jsonify(registros[:500])
 
 @app.route('/api/ventas/hoy')
 def api_ventas_hoy():
@@ -157,10 +192,85 @@ def api_ganancias_resumen():
         })
     return jsonify({})
 
+@app.route('/api/sugerir-precio', methods=['POST'])
+def api_sugerir_precio():
+    data = request.get_json()
+    costo = parse_decimal(data.get('costo', 0))
+    categoria = data.get('categoria', 'General')
+    if costo <= 0:
+        return jsonify({"error": "Costo inválido"}), 400
+    precio = sugerir_precio(costo, categoria)
+    return jsonify({"precio_sugerido": precio})
+
+@app.route('/api/producto', methods=['POST'])
+def api_crear_producto():
+    if spreadsheet is None:
+        return jsonify({"error": "No conectado"}), 500
+    data = request.get_json()
+    sku = data.get('sku', '').strip()
+    nombre = data.get('nombre', '').strip()
+    categoria = data.get('categoria', 'General')
+    costo = parse_decimal(data.get('costo', 0))
+    stock = parse_int(data.get('stock', 0))
+    proveedor = data.get('proveedor', '')
+    precio_venta = parse_decimal(data.get('precio_venta', 0))
+
+    if not nombre:
+        return jsonify({"error": "Nombre es obligatorio"}), 400
+    if costo <= 0:
+        return jsonify({"error": "Costo debe ser mayor a 0"}), 400
+
+    hoja_inv = get_worksheet('inventario')
+    registros = hoja_inv.get_all_records()
+    if not sku:
+        sku = generar_sku(nombre)
+    elif any(r.get('SKU') == sku for r in registros):
+        return jsonify({"error": "SKU ya existe"}), 400
+
+    if precio_venta <= 0:
+        precio_venta = sugerir_precio(costo, categoria)
+        if precio_venta is None:
+            precio_venta = round(costo * 1.6, 2)
+
+    margen = round((precio_venta - costo) / costo, 6) if costo else 0
+    estado = "OK" if stock > 5 else "Bajo"
+    ahora = ahora_iso()
+
+    fila = [
+        sku, nombre, "estandar", nombre, categoria, "", "",
+        costo, precio_venta, precio_venta, stock, 5,
+        estado, margen, "unidad", proveedor,
+        ahora, "web_user"
+    ]
+    hoja_inv.append_row(fila, value_input_option="USER_ENTERED")
+    return jsonify({"mensaje": "Producto creado", "sku": sku, "precio_sugerido": precio_venta})
+
+@app.route('/api/actualizar-producto', methods=['PUT'])
+def api_actualizar_producto():
+    if spreadsheet is None:
+        return jsonify({"error": "No conectado"}), 500
+    data = request.get_json()
+    sku = data.get('sku')
+    precio_venta = parse_decimal(data.get('precio_venta', 0))
+    stock = parse_int(data.get('stock', 0))
+
+    hoja_inv = get_worksheet('inventario')
+    filas = hoja_inv.get_all_values()
+    for i, fila in enumerate(filas):
+        if fila and fila[0] == sku:
+            if precio_venta > 0:
+                hoja_inv.update_cell(i+1, 10, precio_venta)  # col J
+            if stock >= 0:
+                hoja_inv.update_cell(i+1, 11, stock)  # col K
+                estado = "OK" if stock > 5 else "Bajo"
+                hoja_inv.update_cell(i+1, 13, estado)  # col M
+            return jsonify({"mensaje": "Producto actualizado"})
+    return jsonify({"error": "Producto no encontrado"}), 404
+
 @app.route('/api/venta', methods=['POST'])
 def api_registrar_venta():
     if spreadsheet is None:
-        return jsonify({"error": "No conectado a Google Sheets"}), 500
+        return jsonify({"error": "No conectado"}), 500
 
     data = request.get_json()
     items = data.get('items', [])
@@ -169,7 +279,6 @@ def api_registrar_venta():
     if not items:
         return jsonify({'error': 'No hay items'}), 400
 
-    # Obtener todas las hojas necesarias
     hoja_inv = get_worksheet('inventario')
     hoja_ventas = get_worksheet('ventas')
     hoja_boletas = get_worksheet('boletas')
@@ -180,12 +289,12 @@ def api_registrar_venta():
     if any(h is None for h in [hoja_inv, hoja_ventas, hoja_boletas, hoja_mov]):
         return jsonify({"error": "Faltan hojas en el sheet"}), 500
 
-    # Leer inventario actual para obtener precios y stocks
     registros_inv = hoja_inv.get_all_records()
     productos = {r['SKU']: r for r in registros_inv}
 
     resultados = []
     ganancia_total = 0.0
+    subtotal = 0.0
     now = ahora_iso()
     id_boleta = int(datetime.now().timestamp() * 1000) % 10_000_000
 
@@ -206,31 +315,25 @@ def api_registrar_venta():
             resultados.append(f"⚠️ Stock insuficiente de {prod['Nombre_completo']}")
             continue
 
-        # 1. Actualizar Stock en inventario
         nuevo_stock = stock_actual - cantidad
         filas = hoja_inv.get_all_values()
         for i, fila in enumerate(filas):
             if fila and fila[0] == sku:
-                # Columna Stock_actual es la 10 (índice 10 en 0-based, o columna 11 en 1-based)
                 hoja_inv.update_cell(i+1, 11, nuevo_stock)
                 break
 
-        # 2. Registrar en Ventas
         costo = parse_decimal(prod.get('Costo', 0))
         ganancia_unidad = precio_real - costo
         ganancia_total += ganancia_unidad * cantidad
+        subtotal += precio_real * cantidad
 
         hoja_ventas.append_row([
             now, id_boleta, sku, prod['Nombre_completo'],
             cantidad, precio_real, costo, ganancia_unidad, ganancia_unidad * cantidad, vendedor
         ])
-
-        # 3. Registrar en Movimientos
         hoja_mov.append_row([
             now, sku, 'venta', cantidad, precio_real, cantidad * precio_real, '', vendedor, ''
         ])
-
-        # 4. Registrar en Boletas (detalle de diferencia de precios)
         precio_sugerido = parse_decimal(prod.get('Precio_venta_actual', 0))
         diferencia = precio_real - precio_sugerido
         tipo_diferencia = 'extra' if diferencia > 0 else ('perdida' if diferencia < 0 else 'normal')
@@ -238,8 +341,6 @@ def api_registrar_venta():
             id_boleta, now, '', '', sku, prod['Nombre_completo'], cantidad,
             precio_sugerido, precio_real, diferencia, tipo_diferencia, cantidad * precio_real, vendedor
         ])
-
-        # 5. Extras / Perdidas
         if diferencia > 0:
             hoja_extras.append_row([
                 now, id_boleta, sku, 'extra', diferencia * cantidad,
@@ -254,17 +355,40 @@ def api_registrar_venta():
                 now, id_boleta, sku, 'perdida', abs(diferencia * cantidad),
                 'Venta por debajo del precio sugerido', 0, abs(diferencia * cantidad), diferencia * cantidad
             ])
-
         resultados.append(f"✅ {cantidad} x {prod['Nombre_completo']} - {fmt_money(precio_real)}")
 
     return jsonify({
         'mensaje': 'Venta registrada exitosamente',
         'detalle': resultados,
         'ganancia_total': ganancia_total,
-        'boleta_id': id_boleta
+        'boleta_id': id_boleta,
+        'subtotal': subtotal
     })
 
-# ==================== INICIO ====================
+@app.route('/api/boleta/<int:boleta_id>')
+def api_boleta(boleta_id):
+    if spreadsheet is None:
+        return jsonify({"error": "No conectado"}), 500
+    hoja = get_worksheet('boletas')
+    if hoja is None:
+        return jsonify({"error": "Hoja no encontrada"}), 404
+    registros = hoja.get_all_records()
+    items = [r for r in registros if parse_int(r.get('ID_Boleta', 0)) == boleta_id]
+    if not items:
+        return jsonify({"error": "Boleta no encontrada"}), 404
+    subtotal = sum(parse_decimal(r.get('Total_fila', 0)) for r in items)
+    igv = round(subtotal * 0.18, 2)
+    total = round(subtotal + igv, 2)
+    return jsonify({
+        'boleta_id': boleta_id,
+        'fecha': items[0].get('Fecha') if items else '',
+        'items': items,
+        'subtotal': subtotal,
+        'igv': igv,
+        'total': total,
+        'vendedor': items[0].get('Vendedor', '') if items else ''
+    })
+
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)

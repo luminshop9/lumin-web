@@ -9,8 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        /* ... TODO EL CSS QUE YA TENÍAS ... */
-        /* (Pégalo completo, es el mismo que diste) */
         :root {
             --primary: #8B5CF6;
             --primary-light: #A78BFA;
@@ -186,7 +184,7 @@
 
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
         .modal-overlay.active { opacity: 1; pointer-events: all; }
-        .modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 24px; padding: 32px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; transform: translateY(20px); transition: transform 0.3s ease; }
+        .modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 24px; padding: 32px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; transform: translateY(20px); transition: transform 0.3s ease; }
         .modal-overlay.active .modal { transform: translateY(0); }
         .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; }
         .modal-title { font-size: 20px; font-weight: 700; }
@@ -284,6 +282,17 @@
         .top-product-sales { font-size: 12px; color: var(--text-muted); }
         .top-product-bar { width: 100px; height: 6px; background: var(--bg-dark); border-radius: 3px; overflow: hidden; }
         .top-product-bar-fill { height: 100%; background: var(--gradient-1); border-radius: 3px; }
+
+        /* Boleta Modal */
+        .boleta-content { background: white; color: #1a1033; padding: 24px; border-radius: 12px; font-family: 'Courier New', monospace; max-width: 400px; margin: 0 auto; }
+        .boleta-content .store-name { font-size: 20px; font-weight: 800; text-align: center; margin-bottom: 4px; }
+        .boleta-content .store-info { text-align: center; font-size: 12px; color: #555; margin-bottom: 16px; }
+        .boleta-content .boleta-header { display: flex; justify-content: space-between; font-size: 12px; border-bottom: 1px dashed #333; padding-bottom: 8px; margin-bottom: 8px; }
+        .boleta-content .item-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px dotted #ddd; }
+        .boleta-content .totals { border-top: 1px dashed #333; padding-top: 8px; margin-top: 8px; }
+        .boleta-content .totals div { display: flex; justify-content: space-between; font-size: 14px; }
+        .boleta-content .totals .total { font-weight: 800; font-size: 18px; margin-top: 4px; }
+        .boleta-actions { display: flex; gap: 12px; margin-top: 16px; justify-content: center; }
     </style>
 </head>
 <body data-theme="dark">
@@ -326,7 +335,7 @@
                 <div class="user-profile">
                     <div class="user-avatar" id="userAvatar"><span>AD</span></div>
                     <div class="user-info">
-                        <div class="user-name" id="userName">Admin</div>
+                        <div class="user-name">Admin</div>
                         <div class="user-role">Administrador</div>
                     </div>
                 </div>
@@ -342,25 +351,25 @@
                 <div class="top-bar">
                     <div class="top-bar-title"><h1>Dashboard</h1><p>Resumen de tu negocio hoy</p></div>
                     <div class="top-bar-actions">
-                        <button class="btn-icon" onclick="refreshData()" title="Actualizar"><i class="fas fa-sync-alt"></i></button>
+                        <button class="btn-icon" onclick="fetchData()" title="Actualizar"><i class="fas fa-sync-alt"></i></button>
                         <button class="btn-primary" onclick="navigateTo('ventas')"><i class="fas fa-plus"></i> Nueva Venta</button>
                     </div>
                 </div>
                 <div class="card-grid">
                     <div class="stat-card purple">
                         <div class="stat-header"><div class="stat-icon purple"><i class="fas fa-dollar-sign"></i></div><div class="stat-trend up">+12%</div></div>
-                        <div class="stat-value" id="dashVentasHoy">S/ 0.00</div><div class="stat-label">Ventas Hoy</div>
+                        <div class="stat-value" id="dashVentasHoy">S/ 0.00</div><div class="stat-label">Ventas Hoy (Ganancia)</div>
                     </div>
                     <div class="stat-card pink">
                         <div class="stat-header"><div class="stat-icon pink"><i class="fas fa-box"></i></div><div class="stat-trend up">+5</div></div>
                         <div class="stat-value" id="dashProductos">0</div><div class="stat-label">Productos Totales</div>
                     </div>
                     <div class="stat-card green">
-                        <div class="stat-header"><div class="stat-icon green"><i class="fas fa-check-circle"></i></div><div class="stat-trend up">98%</div></div>
+                        <div class="stat-header"><div class="stat-icon green"><i class="fas fa-check-circle"></i></div></div>
                         <div class="stat-value" id="dashStockOK">0</div><div class="stat-label">Stock OK</div>
                     </div>
                     <div class="stat-card orange">
-                        <div class="stat-header"><div class="stat-icon orange"><i class="fas fa-exclamation-triangle"></i></div><div class="stat-trend down">-2</div></div>
+                        <div class="stat-header"><div class="stat-icon orange"><i class="fas fa-exclamation-triangle"></i></div></div>
                         <div class="stat-value" id="dashStockBajo">0</div><div class="stat-label">Stock Bajo</div>
                     </div>
                 </div>
@@ -375,9 +384,7 @@
                         <div><div class="section-title">Productos con Stock Bajo</div><div class="section-subtitle">Requiere atención inmediata</div></div>
                         <button class="btn-secondary" onclick="navigateTo('inventario')">Ver Todo <i class="fas fa-arrow-right"></i></button>
                     </div>
-                    <div id="dashStockBajoTable">
-                        <div class="empty-state"><i class="fas fa-check-circle"></i><h3>Cargando...</h3></div>
-                    </div>
+                    <div id="dashStockBajoTable"><div class="empty-state"><i class="fas fa-spinner fa-spin"></i><h3>Cargando...</h3></div></div>
                 </div>
             </div>
 
@@ -423,7 +430,7 @@
                     </div>
                     <div style="overflow-x: auto;">
                         <table class="data-table">
-                            <thead><tr><th>SKU</th><th>Producto</th><th>Categoría</th><th>Costo</th><th>Precio</th><th>Stock</th><th>Stock Min.</th><th>Proveedor</th><th>Ventas</th><th>Acciones</th></tr></thead>
+                            <thead><tr><th>SKU</th><th>Producto</th><th>Categoría</th><th>Costo</th><th>Precio</th><th>Stock</th><th>Stock Min.</th><th>Proveedor</th><th>Acciones</th></tr></thead>
                             <tbody id="inventarioTable"></tbody>
                         </table>
                     </div>
@@ -442,8 +449,8 @@
                         </div>
                     </div>
                     <div class="card-grid" style="margin-top: 20px;">
-                        <div class="stat-card green"><div class="stat-header"><div class="stat-icon green"><i class="fas fa-arrow-up"></i></div></div><div class="stat-value" id="cierreIngresos">S/ 0.00</div><div class="stat-label">Ingresos</div></div>
-                        <div class="stat-card orange"><div class="stat-header"><div class="stat-icon orange"><i class="fas fa-arrow-down"></i></div></div><div class="stat-value" id="cierreGastos">S/ 0.00</div><div class="stat-label">Gastos</div></div>
+                        <div class="stat-card green"><div class="stat-header"><div class="stat-icon green"><i class="fas fa-arrow-up"></i></div></div><div class="stat-value" id="cierreIngresos">S/ 0.00</div><div class="stat-label">Ingresos (Ventas)</div></div>
+                        <div class="stat-card orange"><div class="stat-header"><div class="stat-icon orange"><i class="fas fa-arrow-down"></i></div></div><div class="stat-value" id="cierreGastos">S/ 0.00</div><div class="stat-label">Gastos (Compras)</div></div>
                         <div class="stat-card purple"><div class="stat-header"><div class="stat-icon purple"><i class="fas fa-calculator"></i></div></div><div class="stat-value" id="cierreGanancia">S/ 0.00</div><div class="stat-label">Ganancia Neta</div></div>
                     </div>
                     <div style="margin-top: 24px; text-align: center;"><div class="profit-indicator gain" id="cierreEstado"><i class="fas fa-chart-line"></i><span>Ganancia</span></div></div>
@@ -469,12 +476,12 @@
                     <div class="stat-card pink"><div class="stat-header"><div class="stat-icon pink"><i class="fas fa-percentage"></i></div></div><div class="stat-value" id="rentMargen">0%</div><div class="stat-label">Margen de Ganancia</div></div>
                 </div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-                    <div class="section-card"><div class="section-header"><div class="section-title">Top 5 Productos Más Vendidos</div></div><div id="topProductos"></div></div>
-                    <div class="section-card"><div class="section-header"><div class="section-title">Productos Dormidos</div><div class="section-subtitle">Menos de 2 ventas</div></div><div id="productosDormidos"></div></div>
+                    <div class="section-card"><div class="section-header"><div class="section-title">Top 5 Productos Más Vendidos</div></div><div id="topProductos"><div class="empty-state"><p>Cargando...</p></div></div></div>
+                    <div class="section-card"><div class="section-header"><div class="section-title">Productos Dormidos</div><div class="section-subtitle">Menos de 2 ventas</div></div><div id="productosDormidos"><div class="empty-state"><p>Cargando...</p></div></div></div>
                 </div>
             </div>
 
-            <!-- CHAT -->
+            <!-- CHAT (Sin cambios, placeholder) -->
             <div class="section" id="section-chat">
                 <div class="top-bar"><div class="top-bar-title"><h1><i class="fas fa-robot" style="color: var(--primary-light);"></i> Asistente LUMIN</h1><p>Consulta información de tu negocio</p></div></div>
                 <div class="section-card" style="padding: 0; overflow: hidden;">
@@ -499,28 +506,17 @@
             <!-- AJUSTES -->
             <div class="section" id="section-ajustes">
                 <div class="top-bar"><div class="top-bar-title"><h1>Ajustes</h1><p>Configuración de la aplicación</p></div></div>
-                <div class="section-card">
-                    <div class="section-header"><div class="section-title">Conexión Google Sheets</div></div>
-                    <div class="form-group"><label class="form-label">Sheet ID</label><input type="text" class="form-input" id="settingsSheetId" placeholder="Ingresa el ID de tu hoja de Google Sheets"></div>
-                    <div class="form-group"><label class="form-label">Webhook URL</label><input type="text" class="form-input" id="settingsWebhookUrl" placeholder="URL del webhook de Apps Script"></div>
-                    <button class="btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Guardar Conexión</button>
-                    <div style="margin-top: 12px; padding: 12px; background: var(--bg-dark); border-radius: 10px; font-size: 13px; color: var(--text-muted);"><i class="fas fa-info-circle"></i> Si no configuras la conexión, la app usará datos de ejemplo.</div>
-                </div>
+                <div class="section-card"><div class="section-header"><div class="section-title">Conexión Google Sheets</div></div><div class="form-group"><label class="form-label">Sheet ID</label><input type="text" class="form-input" id="settingsSheetId" placeholder="Ingresa el ID de tu hoja"></div><button class="btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Guardar Conexión</button></div>
                 <div class="section-card">
                     <div class="section-header"><div class="section-title">Apariencia</div></div>
                     <div class="settings-item">
-                        <div class="settings-info"><h4>Tema</h4><p>Selecciona el tema de la aplicación</p></div>
+                        <div class="settings-info"><h4>Tema</h4><p>Selecciona el tema</p></div>
                         <div class="theme-options">
                             <div class="theme-option dark active" onclick="setTheme('dark')" title="Oscuro"></div>
                             <div class="theme-option light" onclick="setTheme('light')" title="Claro"></div>
                             <div class="theme-option amoled" onclick="setTheme('amoled')" title="AMOLED"></div>
                         </div>
                     </div>
-                </div>
-                <div class="section-card">
-                    <div class="section-header"><div class="section-title">Tienda</div></div>
-                    <div class="form-group"><label class="form-label">Nombre de la Tienda</label><input type="text" class="form-input" id="settingsStoreName" value="Mi Negocio" onchange="updateStoreName()"></div>
-                    <div class="form-group"><label class="form-label">Foto de Perfil</label><input type="file" class="form-input" id="settingsAvatar" accept="image/*" onchange="updateAvatar(this)"></div>
                 </div>
                 <div class="section-card">
                     <div class="section-header"><div class="section-title">Cuenta</div></div>
@@ -534,20 +530,17 @@
     <div class="modal-overlay" id="modalProducto">
         <div class="modal">
             <div class="modal-header"><div class="modal-title">Nuevo Producto</div><button class="modal-close" onclick="closeModal('producto')"><i class="fas fa-times"></i></button></div>
+            <div class="form-group"><label class="form-label">SKU (Opcional, se genera automáticamente)</label><input type="text" class="form-input" id="prodSKU" placeholder="SKU (dejar vacío para autogenerar)"></div>
+            <div class="form-group"><label class="form-label">Nombre del Producto *</label><input type="text" class="form-input" id="prodNombre" placeholder="Nombre del producto" required></div>
+            <div class="form-group"><label class="form-label">Categoría</label><select class="form-select" id="prodCategoria"></select></div>
             <div class="form-row">
-                <div class="form-group"><label class="form-label">SKU</label><input type="text" class="form-input" id="prodSKU" placeholder="SKU-001"></div>
-                <div class="form-group"><label class="form-label">Categoría</label><select class="form-select" id="prodCategoria"><option value="A">Abarrotes (A)</option><option value="F">Ferretería (F)</option></select></div>
-            </div>
-            <div class="form-group"><label class="form-label">Nombre del Producto</label><input type="text" class="form-input" id="prodNombre" placeholder="Nombre del producto"></div>
-            <div class="form-row">
-                <div class="form-group"><label class="form-label">Costo (S/)</label><input type="number" class="form-input" id="prodCosto" placeholder="0.00" step="0.01"></div>
-                <div class="form-group"><label class="form-label">Precio Venta (S/)</label><input type="number" class="form-input" id="prodPrecio" placeholder="0.00" step="0.01"></div>
+                <div class="form-group"><label class="form-label">Costo (S/) *</label><input type="number" class="form-input" id="prodCosto" placeholder="0.00" step="0.01" oninput="sugerirPrecio()"></div>
+                <div class="form-group"><label class="form-label">Precio Venta Sugerido (S/)</label><input type="number" class="form-input" id="prodPrecio" placeholder="Se sugiere automáticamente" step="0.01"></div>
             </div>
             <div class="form-row">
                 <div class="form-group"><label class="form-label">Stock</label><input type="number" class="form-input" id="prodStock" placeholder="0"></div>
-                <div class="form-group"><label class="form-label">Stock Mínimo</label><input type="number" class="form-input" id="prodStockMin" placeholder="0"></div>
+                <div class="form-group"><label class="form-label">Proveedor</label><input type="text" class="form-input" id="prodProveedor" placeholder="Nombre del proveedor"></div>
             </div>
-            <div class="form-group"><label class="form-label">Proveedor</label><input type="text" class="form-input" id="prodProveedor" placeholder="Nombre del proveedor"></div>
             <button class="btn-primary" style="width: 100%;" onclick="guardarProducto()"><i class="fas fa-save"></i> Guardar Producto</button>
         </div>
     </div>
@@ -565,19 +558,41 @@
         </div>
     </div>
 
+    <!-- Modal Boleta -->
+    <div class="modal-overlay" id="modalBoleta">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header"><div class="modal-title">Boleta Electrónica</div><button class="modal-close" onclick="closeModal('boleta')"><i class="fas fa-times"></i></button></div>
+            <div id="boletaContent" class="boleta-content">
+                <div class="store-name">LUMIN STORE</div>
+                <div class="store-info">RUC: 00000000000 | Tel: 999 999 999</div>
+                <div class="boleta-header"><span>Boleta #<span id="boletaId">0000</span></span><span id="boletaFecha">--/--/----</span></div>
+                <div id="boletaItems"></div>
+                <div class="totals">
+                    <div><span>Subtotal</span><span id="boletaSubtotal">S/ 0.00</span></div>
+                    <div><span>IGV (18%)</span><span id="boletaIGV">S/ 0.00</span></div>
+                    <div class="total"><span>TOTAL</span><span id="boletaTotal">S/ 0.00</span></div>
+                </div>
+                <div style="text-align:center;font-size:11px;color:#888;margin-top:12px;">Gracias por su compra</div>
+            </div>
+            <div class="boleta-actions">
+                <button class="btn-secondary" onclick="window.print()"><i class="fas fa-print"></i> Imprimir</button>
+                <button class="btn-secondary" onclick="compartirWhatsApp()"><i class="fas fa-whatsapp"></i> WhatsApp</button>
+            </div>
+        </div>
+    </div>
+
     <script>
     // ============================================
     // CONFIGURACIÓN
     // ============================================
-    const MASTER_PASSWORD = "Lumin2026";  // Misma contraseña que usas en el bot
+    const MASTER_PASSWORD = "Lumin2026";
 
     // Estado global
     let inventario = [];
     let movimientos = [];
-    let gastos = [];  // Los gastos los leeremos de la hoja "compras" o "gastos" si existe
     let carrito = [];
     let currentSection = 'inicio';
-    let storeName = "Mi Negocio";
+    let ultimaBoletaId = null;
 
     // ============================================
     // FUNCIONES DE UTILIDAD
@@ -628,7 +643,7 @@
         if (pwd === MASTER_PASSWORD) {
             document.getElementById('loginScreen').classList.add('hidden');
             document.getElementById('appContainer').style.display = 'flex';
-            initApp();
+            fetchData();
         } else {
             document.getElementById('loginError').classList.add('show');
             setTimeout(() => document.getElementById('loginError').classList.remove('show'), 3000);
@@ -660,21 +675,21 @@
             const stockBajo = await stockBajoRes.json();
             const ganancias = await gananciasRes.json();
 
-            // Actualizar dashboard
+            // Dashboard
             document.getElementById('dashVentasHoy').textContent = formatMoney(ventasHoy.total || 0);
             document.getElementById('dashProductos').textContent = inventario.length;
             const stockOK = inventario.filter(p => p.Stock_actual > p.Stock_minimo).length;
             document.getElementById('dashStockOK').textContent = stockOK;
             document.getElementById('dashStockBajo').textContent = stockBajo.length;
 
-            // Tabla de stock bajo en dashboard
+            // Stock bajo table
             const container = document.getElementById('dashStockBajoTable');
             if (stockBajo.length === 0) {
                 container.innerHTML = '<div class="empty-state"><i class="fas fa-check-circle"></i><h3>Todo en orden</h3><p>No hay productos con stock bajo</p></div>';
             } else {
                 let html = '<table class="data-table"><thead><tr><th>Producto</th><th>Stock</th><th>Mínimo</th><th>Estado</th></tr></thead><tbody>';
                 stockBajo.forEach(p => {
-                    html += '<tr><td>' + p.Nombre + '</td><td>' + p.Stock + '</td><td>' + p.Minimo + '</td><td><span class="badge badge-danger">Crítico</span></td></tr>';
+                    html += `<tr><td>${p.Nombre}</td><td>${p.Stock}</td><td>${p.Minimo}</td><td><span class="badge badge-danger">Crítico</span></td></tr>`;
                 });
                 html += '</tbody></table>';
                 container.innerHTML = html;
@@ -688,94 +703,30 @@
                 document.getElementById('rentMargen').textContent = (ganancias.margen || 0).toFixed(1) + '%';
             }
 
-            // Top productos y dormidos (lo calculamos desde inventario)
-            updateTopProductos();
-
-            // Renderizar inventario y productos de ventas
-            renderInventario();
-            filterProducts();
-            updateCierre();
-
-            // Cargar categorías en los filtros
+            // Categorías para selects
             const categorias = [...new Set(inventario.map(p => p.Categoria).filter(Boolean))];
-            const selects = document.querySelectorAll('#ventasFilter, #invFilter');
+            const selects = document.querySelectorAll('#ventasFilter, #invFilter, #prodCategoria');
             selects.forEach(sel => {
                 const currentVal = sel.value;
-                sel.innerHTML = '<option value="">Todas las categorías</option>';
-                categorias.forEach(cat => {
-                    sel.innerHTML += `<option value="${cat}">${cat}</option>`;
-                });
+                sel.innerHTML = '<option value="">Todas las categorías</option>' + 
+                    categorias.map(c => `<option value="${c}">${c}</option>`).join('');
                 sel.value = currentVal;
             });
 
+            renderInventario();
+            filterProducts();
+            updateCierre();
+            updateRentabilidad();
             showToast('Datos cargados correctamente', 'success');
         } catch (e) {
-            console.error('Error fetching data:', e);
-            showToast('Error al cargar datos del servidor', 'error');
+            console.error(e);
+            showToast('Error al cargar datos', 'error');
         }
         setLoading(false);
     }
 
-    function updateTopProductos() {
-        // Top 5
-        const sorted = [...inventario].sort((a, b) => (b.ventas || 0) - (a.ventas || 0));
-        const top5 = sorted.slice(0, 5);
-        const maxVentas = top5[0]?.ventas || 1;
-        const topContainer = document.getElementById('topProductos');
-        if (top5.length === 0 || !top5[0].ventas) {
-            topContainer.innerHTML = '<div class="empty-state"><p>No hay datos suficientes</p></div>';
-        } else {
-            topContainer.innerHTML = top5.map((p, i) =>
-                '<div class="top-product-item">' +
-                    '<div class="top-product-rank">' + (i + 1) + '</div>' +
-                    '<div class="top-product-info">' +
-                        '<div class="top-product-name">' + p.Nombre_completo + '</div>' +
-                        '<div class="top-product-sales">' + (p.ventas || 0) + ' ventas</div>' +
-                    '</div>' +
-                    '<div class="top-product-bar"><div class="top-product-bar-fill" style="width:' + ((p.ventas / maxVentas) * 100) + '%"></div></div>' +
-                '</div>'
-            ).join('');
-        }
-
-        // Dormidos (menos de 2 ventas)
-        const dormidos = inventario.filter(p => (p.ventas || 0) < 2).sort((a, b) => (a.ventas || 0) - (b.ventas || 0));
-        const dormContainer = document.getElementById('productosDormidos');
-        if (dormidos.length === 0) {
-            dormContainer.innerHTML = '<div class="empty-state"><p>No hay productos dormidos</p></div>';
-        } else {
-            dormContainer.innerHTML = dormidos.slice(0, 10).map(p =>
-                '<div class="top-product-item">' +
-                    '<div class="top-product-rank" style="background:var(--danger)"><i class="fas fa-bed" style="font-size:10px"></i></div>' +
-                    '<div class="top-product-info">' +
-                        '<div class="top-product-name">' + p.Nombre_completo + '</div>' +
-                        '<div class="top-product-sales">' + (p.ventas || 0) + ' ventas - Stock: ' + p.Stock_actual + '</div>' +
-                    '</div>' +
-                '</div>'
-            ).join('');
-        }
-    }
-
     // ============================================
-    // INICIALIZACIÓN
-    // ============================================
-    function initApp() {
-        // Cargar settings guardados
-        const savedSheetId = localStorage.getItem('lumin_sheetId');
-        const savedWebhook = localStorage.getItem('lumin_webhook');
-        const savedTheme = localStorage.getItem('lumin_theme') || 'dark';
-        const savedStore = localStorage.getItem('lumin_storeName') || 'Mi Negocio';
-
-        if (savedSheetId) document.getElementById('settingsSheetId').value = savedSheetId;
-        if (savedWebhook) document.getElementById('settingsWebhookUrl').value = savedWebhook;
-        document.getElementById('settingsStoreName').value = savedStore;
-        storeName = savedStore;
-        setTheme(savedTheme);
-
-        fetchData();
-    }
-
-    // ============================================
-    // VENTAS - PUNTO DE VENTA
+    // VENTAS
     // ============================================
     function filterProducts() {
         const search = document.getElementById('ventasSearch').value.toLowerCase();
@@ -791,13 +742,13 @@
 
         grid.innerHTML = filtered.map(p => {
             const inCart = carrito.find(c => c.sku === p.SKU);
-            return '<div class="product-card ' + (inCart ? 'selected' : '') + '" onclick="addToCart(\'' + p.SKU + '\')">' +
-                '<div class="product-card-category ' + (p.Categoria ? p.Categoria.charAt(0) : '') + '">' + (p.Categoria ? p.Categoria.charAt(0) : '') + '</div>' +
-                '<div class="product-card-name">' + p.Nombre_completo + '</div>' +
-                '<div class="product-card-sku">' + p.SKU + '</div>' +
-                '<div class="product-card-price">' + formatMoney(p.Precio_venta_actual) + '</div>' +
-                '<div class="product-card-stock">Stock: ' + p.Stock_actual + ' unid.</div>' +
-                '</div>';
+            return `<div class="product-card ${inCart ? 'selected' : ''}" onclick="addToCart('${p.SKU}')">
+                <div class="product-card-category ${p.Categoria ? p.Categoria.charAt(0) : ''}">${p.Categoria ? p.Categoria.charAt(0) : ''}</div>
+                <div class="product-card-name">${p.Nombre_completo}</div>
+                <div class="product-card-sku">${p.SKU}</div>
+                <div class="product-card-price">${formatMoney(p.Precio_venta_actual)}</div>
+                <div class="product-card-stock">Stock: ${p.Stock_actual} unid.</div>
+            </div>`;
         }).join('');
     }
 
@@ -814,15 +765,14 @@
                 return;
             }
         } else {
-            carrito.push({sku: prod.SKU, nombre: prod.Nombre_completo, precio: prod.Precio_venta_actual, cantidad: 1, categoria: prod.Categoria});
+            carrito.push({sku: prod.SKU, nombre: prod.Nombre_completo, precio: prod.Precio_venta_actual, cantidad: 1});
         }
         renderCart();
         filterProducts();
     }
 
     function removeFromCart(sku) {
-        const idx = carrito.findIndex(c => c.sku === sku);
-        if (idx > -1) carrito.splice(idx, 1);
+        carrito = carrito.filter(c => c.sku !== sku);
         renderCart();
         filterProducts();
     }
@@ -850,20 +800,20 @@
             return;
         }
 
-        container.innerHTML = carrito.map(item =>
-            '<div class="cart-item">' +
-                '<div class="cart-item-info">' +
-                    '<div class="cart-item-name">' + item.nombre + '</div>' +
-                    '<div class="cart-item-price">' + formatMoney(item.precio) + ' c/u</div>' +
-                '</div>' +
-                '<div class="cart-item-qty">' +
-                    '<button class="qty-btn" onclick="updateQty(\'' + item.sku + '\', -1)">-</button>' +
-                    '<span>' + item.cantidad + '</span>' +
-                    '<button class="qty-btn" onclick="updateQty(\'' + item.sku + '\', 1)">+</button>' +
-                '</div>' +
-                '<button class="btn-icon btn-small" onclick="removeFromCart(\'' + item.sku + '\')" style="width:28px;height:28px;"><i class="fas fa-trash" style="font-size:12px;color:var(--danger)"></i></button>' +
-            '</div>'
-        ).join('');
+        container.innerHTML = carrito.map(item => `
+            <div class="cart-item">
+                <div class="cart-item-info">
+                    <div class="cart-item-name">${item.nombre}</div>
+                    <div class="cart-item-price">${formatMoney(item.precio)} c/u</div>
+                </div>
+                <div class="cart-item-qty">
+                    <button class="qty-btn" onclick="updateQty('${item.sku}', -1)">-</button>
+                    <span>${item.cantidad}</span>
+                    <button class="qty-btn" onclick="updateQty('${item.sku}', 1)">+</button>
+                </div>
+                <button class="btn-icon btn-small" onclick="removeFromCart('${item.sku}')" style="width:28px;height:28px;"><i class="fas fa-trash" style="font-size:12px;color:var(--danger)"></i></button>
+            </div>
+        `).join('');
         updateTotals();
     }
 
@@ -888,11 +838,7 @@
             return;
         }
 
-        const items = carrito.map(item => ({
-            sku: item.sku,
-            cantidad: item.cantidad,
-            precio: item.precio
-        }));
+        const items = carrito.map(item => ({ sku: item.sku, cantidad: item.cantidad, precio: item.precio }));
 
         try {
             const resp = await fetch('/api/venta', {
@@ -904,14 +850,52 @@
             if (data.error) {
                 showToast(data.error, 'error');
             } else {
-                showToast('Venta registrada exitosamente. Boleta #' + data.boleta_id, 'success');
+                showToast(`Venta registrada exitosamente. Boleta #${data.boleta_id}`, 'success');
+                ultimaBoletaId = data.boleta_id;
                 limpiarCarrito();
-                await fetchData(); // recargar datos
-                navigateTo('inicio');
+                fetchData();
+                // Mostrar boleta
+                verBoleta(data.boleta_id);
             }
         } catch (e) {
             showToast('Error al registrar venta', 'error');
         }
+    }
+
+    // ============================================
+    // BOLETA
+    // ============================================
+    async function verBoleta(id) {
+        try {
+            const resp = await fetch(`/api/boleta/${id}`);
+            const data = await resp.json();
+            if (data.error) {
+                showToast(data.error, 'error');
+                return;
+            }
+            document.getElementById('boletaId').textContent = data.boleta_id;
+            document.getElementById('boletaFecha').textContent = formatDateTime(data.fecha);
+            document.getElementById('boletaSubtotal').textContent = formatMoney(data.subtotal);
+            document.getElementById('boletaIGV').textContent = formatMoney(data.igv);
+            document.getElementById('boletaTotal').textContent = formatMoney(data.total);
+
+            let itemsHtml = '';
+            data.items.forEach(item => {
+                itemsHtml += `<div class="item-row"><span>${item.Cantidad}x ${item.Producto}</span><span>${formatMoney(item.Precio_real)}</span></div>`;
+            });
+            document.getElementById('boletaItems').innerHTML = itemsHtml;
+            ultimaBoletaId = id;
+            openModal('boleta');
+        } catch (e) {
+            showToast('Error al cargar boleta', 'error');
+        }
+    }
+
+    function compartirWhatsApp() {
+        const content = document.getElementById('boletaContent');
+        const text = content.innerText.replace(/\n/g, '\n');
+        const url = `https://wa.me/?text=${encodeURIComponent('*LUMIN STORE* - Boleta #' + document.getElementById('boletaId').textContent + '\n' + text)}`;
+        window.open(url, '_blank');
     }
 
     // ============================================
@@ -924,7 +908,7 @@
 
         let filtered = inventario.filter(p => {
             if (cat && p.Categoria !== cat) return false;
-            if (search && !p.Nombre_completo.toLowerCase().includes(search) && !p.SKU.toLowerCase().includes(search) && !(p.Proveedor || '').toLowerCase().includes(search)) return false;
+            if (search && !p.Nombre_completo.toLowerCase().includes(search) && !p.SKU.toLowerCase().includes(search)) return false;
             return true;
         });
 
@@ -933,20 +917,109 @@
             const min = p.Stock_minimo || 5;
             const stockClass = stock <= min ? 'low' : stock <= min * 2 ? 'medium' : 'high';
             const stockBadge = stock <= min ? '<span class="badge badge-danger">Bajo</span>' : '<span class="badge badge-success">OK</span>';
-            const catBadge = p.Categoria ? '<span class="badge badge-info">' + p.Categoria + '</span>' : '';
-            return '<tr>' +
-                '<td>' + p.SKU + '</td>' +
-                '<td><strong>' + p.Nombre_completo + '</strong></td>' +
-                '<td>' + catBadge + '</td>' +
-                '<td>' + formatMoney(p.Costo || 0) + '</td>' +
-                '<td>' + formatMoney(p.Precio_venta_actual || 0) + '</td>' +
-                '<td><div class="stock-indicator"><div class="stock-bar"><div class="stock-bar-fill ' + stockClass + '" style="width:' + Math.min(100, (stock / (min * 3)) * 100) + '%"></div></div><span>' + stock + '</span></div></td>' +
-                '<td>' + min + '</td>' +
-                '<td>' + (p.Proveedor || '') + '</td>' +
-                '<td>' + (p.ventas || 0) + '</td>' +
-                '<td><button class="btn-icon btn-small" onclick="openEditModal(\'' + p.SKU + '\')" title="Editar"><i class="fas fa-edit" style="font-size:12px"></i></button></td>' +
-            '</tr>';
+            const catBadge = p.Categoria ? `<span class="badge badge-info">${p.Categoria}</span>` : '';
+            return `<tr>
+                <td>${p.SKU}</td>
+                <td><strong>${p.Nombre_completo}</strong></td>
+                <td>${catBadge}</td>
+                <td>${formatMoney(p.Costo || 0)}</td>
+                <td>${formatMoney(p.Precio_venta_actual || 0)}</td>
+                <td><div class="stock-indicator"><div class="stock-bar"><div class="stock-bar-fill ${stockClass}" style="width:${Math.min(100, (stock / (min * 3)) * 100)}%"></div></div><span>${stock}</span></div></td>
+                <td>${min}</td>
+                <td>${p.Proveedor || ''}</td>
+                <td><button class="btn-icon btn-small" onclick="openEditModal('${p.SKU}')" title="Editar"><i class="fas fa-edit" style="font-size:12px"></i></button></td>
+            </tr>`;
         }).join('');
+    }
+
+    // Sugerir precio
+    async function sugerirPrecio() {
+        const costo = parseFloat(document.getElementById('prodCosto').value);
+        const categoria = document.getElementById('prodCategoria').value;
+        if (!costo || costo <= 0) return;
+        try {
+            const resp = await fetch('/api/sugerir-precio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ costo, categoria })
+            });
+            const data = await resp.json();
+            if (data.precio_sugerido) {
+                document.getElementById('prodPrecio').value = data.precio_sugerido;
+            }
+        } catch (e) { /* silent */ }
+    }
+
+    async function guardarProducto() {
+        const sku = document.getElementById('prodSKU').value.trim();
+        const nombre = document.getElementById('prodNombre').value.trim();
+        const categoria = document.getElementById('prodCategoria').value;
+        const costo = parseFloat(document.getElementById('prodCosto').value) || 0;
+        const precio_venta = parseFloat(document.getElementById('prodPrecio').value) || 0;
+        const stock = parseInt(document.getElementById('prodStock').value) || 0;
+        const proveedor = document.getElementById('prodProveedor').value.trim();
+
+        if (!nombre || costo <= 0) {
+            showToast('Nombre y Costo son obligatorios', 'error');
+            return;
+        }
+
+        try {
+            const resp = await fetch('/api/producto', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sku, nombre, categoria, costo, precio_venta, stock, proveedor })
+            });
+            const data = await resp.json();
+            if (data.error) {
+                showToast(data.error, 'error');
+            } else {
+                showToast(`Producto ${data.sku} creado exitosamente`, 'success');
+                closeModal('producto');
+                document.getElementById('prodSKU').value = '';
+                document.getElementById('prodNombre').value = '';
+                document.getElementById('prodCosto').value = '';
+                document.getElementById('prodPrecio').value = '';
+                document.getElementById('prodStock').value = '';
+                document.getElementById('prodProveedor').value = '';
+                fetchData();
+            }
+        } catch (e) {
+            showToast('Error al crear producto', 'error');
+        }
+    }
+
+    function openEditModal(sku) {
+        const prod = inventario.find(p => p.SKU === sku);
+        if (!prod) return;
+        document.getElementById('editSKU').value = sku;
+        document.getElementById('editPrecio').value = prod.Precio_venta_actual;
+        document.getElementById('editStock').value = prod.Stock_actual;
+        openModal('editar');
+    }
+
+    async function actualizarProducto() {
+        const sku = document.getElementById('editSKU').value;
+        const precio_venta = parseFloat(document.getElementById('editPrecio').value) || 0;
+        const stock = parseInt(document.getElementById('editStock').value) || 0;
+
+        try {
+            const resp = await fetch('/api/actualizar-producto', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sku, precio_venta, stock })
+            });
+            const data = await resp.json();
+            if (data.error) {
+                showToast(data.error, 'error');
+            } else {
+                showToast('Producto actualizado', 'success');
+                closeModal('editar');
+                fetchData();
+            }
+        } catch (e) {
+            showToast('Error al actualizar', 'error');
+        }
     }
 
     // ============================================
@@ -970,36 +1043,23 @@
         const hoyStr = hoy.toISOString().split('T')[0];
 
         switch(periodo) {
-            case 'hoy':
-                desde = hoyStr; hasta = hoyStr;
-                break;
-            case 'semana':
-                const semana = new Date(hoy); semana.setDate(hoy.getDate() - 7);
-                desde = semana.toISOString().split('T')[0]; hasta = hoyStr;
-                break;
-            case 'mes':
-                const mes = new Date(hoy); mes.setDate(hoy.getDate() - 30);
-                desde = mes.toISOString().split('T')[0]; hasta = hoyStr;
-                break;
-            case 'rango':
-                desde = desdeInput.value || hoyStr;
-                hasta = hastaInput.value || hoyStr;
-                break;
+            case 'hoy': desde = hoyStr; hasta = hoyStr; break;
+            case 'semana': const s = new Date(hoy); s.setDate(hoy.getDate() - 7); desde = s.toISOString().split('T')[0]; hasta = hoyStr; break;
+            case 'mes': const m = new Date(hoy); m.setDate(hoy.getDate() - 30); desde = m.toISOString().split('T')[0]; hasta = hoyStr; break;
+            case 'rango': desde = desdeInput.value || hoyStr; hasta = hastaInput.value || hoyStr; break;
         }
 
         const movs = movimientos.filter(m => {
             const f = (m.Fecha || '').split('T')[0];
-            return f >= desde && f <= hasta && m.Tipo === 'venta';
+            return f >= desde && f <= hasta;
         });
 
-        // Para gastos, usamos la hoja "compras" o una hoja de gastos si existe. Por ahora usamos solo ventas.
-        const ingresos = movs.reduce((s, m) => s + parseFloat(m.Total || 0), 0);
-        // Los costos los tomamos de la hoja "compras" o de un campo de costo. Simplificamos: usamos 0 para gastos.
-        const gastosTotal = 0; // Podríamos leer de hoja "compras" más adelante
-        const ganancia = ingresos - gastosTotal;
+        const ingresos = movs.filter(m => m.Tipo === 'venta').reduce((s, m) => s + parseFloat(m.Total || 0), 0);
+        const gastos = movs.filter(m => m.Tipo === 'compra').reduce((s, m) => s + parseFloat(m.Total || 0), 0);
+        const ganancia = ingresos - gastos;
 
         document.getElementById('cierreIngresos').textContent = formatMoney(ingresos);
-        document.getElementById('cierreGastos').textContent = formatMoney(gastosTotal);
+        document.getElementById('cierreGastos').textContent = formatMoney(gastos);
         document.getElementById('cierreGanancia').textContent = formatMoney(ganancia);
 
         const estadoEl = document.getElementById('cierreEstado');
@@ -1015,103 +1075,84 @@
         if (movs.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" class="empty-state" style="padding:24px;"><p>No hay movimientos en este período</p></td></tr>';
         } else {
-            tbody.innerHTML = movs.slice(0, 50).map(m =>
-                '<tr><td>' + formatDateTime(m.Fecha || '') + '</td><td>' + (m.Producto || '') + '</td><td>' + (m.Cantidad || 0) + '</td><td>' + formatMoney(m.Precio_unitario || 0) + '</td><td>' + formatMoney(m.Total || 0) + '</td><td><span class="badge badge-success">Venta</span></td></tr>'
-            ).join('');
+            tbody.innerHTML = movs.slice(0, 50).map(m => `
+                <tr><td>${formatDateTime(m.Fecha || '')}</td><td>${m.SKU || ''}</td><td>${m.Cantidad || 0}</td><td>${formatMoney(m.Precio_unitario || 0)}</td><td>${formatMoney(m.Total || 0)}</td><td><span class="badge ${m.Tipo === 'venta' ? 'badge-success' : 'badge-warning'}">${m.Tipo || ''}</span></td></tr>
+            `).join('');
         }
     }
 
     // ============================================
-    // RENTABILIDAD (ya actualizada en fetchData)
+    // RENTABILIDAD
     // ============================================
     function updateRentabilidad() {
-        // Ya se actualiza en fetchData, pero por si acaso:
-        fetchData();
+        // Top 5
+        const ventas = movimientos.filter(m => m.Tipo === 'venta');
+        const prodCount = {};
+        ventas.forEach(m => {
+            const key = m.SKU || m.Producto || 'unknown';
+            prodCount[key] = (prodCount[key] || 0) + parseFloat(m.Cantidad || 0);
+        });
+        const sorted = Object.entries(prodCount).sort((a, b) => b[1] - a[1]);
+        const top5 = sorted.slice(0, 5);
+        const maxVentas = top5[0]?.[1] || 1;
+
+        const topContainer = document.getElementById('topProductos');
+        if (top5.length === 0) {
+            topContainer.innerHTML = '<div class="empty-state"><p>Sin ventas registradas</p></div>';
+        } else {
+            topContainer.innerHTML = top5.map(([sku, count], i) => {
+                const prod = inventario.find(p => p.SKU === sku) || { Nombre_completo: sku };
+                return `<div class="top-product-item">
+                    <div class="top-product-rank">${i+1}</div>
+                    <div class="top-product-info">
+                        <div class="top-product-name">${prod.Nombre_completo}</div>
+                        <div class="top-product-sales">${count} ventas</div>
+                    </div>
+                    <div class="top-product-bar"><div class="top-product-bar-fill" style="width:${(count / maxVentas) * 100}%"></div></div>
+                </div>`;
+            }).join('');
+        }
+
+        // Dormidos
+        const vendidos = new Set(ventas.map(m => m.SKU || m.Producto));
+        const dormidos = inventario.filter(p => !vendidos.has(p.SKU) && p.Stock_actual > 0);
+        const dormContainer = document.getElementById('productosDormidos');
+        if (dormidos.length === 0) {
+            dormContainer.innerHTML = '<div class="empty-state"><p>No hay productos dormidos</p></div>';
+        } else {
+            dormContainer.innerHTML = dormidos.slice(0, 10).map(p => `
+                <div class="top-product-item">
+                    <div class="top-product-rank" style="background:var(--danger)"><i class="fas fa-bed" style="font-size:10px"></i></div>
+                    <div class="top-product-info">
+                        <div class="top-product-name">${p.Nombre_completo}</div>
+                        <div class="top-product-sales">0 ventas - Stock: ${p.Stock_actual}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
     }
 
     // ============================================
-    // CHAT IA
+    // CHAT (Placeholder)
     // ============================================
     function sendChat() {
         const input = document.getElementById('chatInput');
         const msg = input.value.trim();
         if (!msg) return;
-
         const container = document.getElementById('chatMessages');
-        container.innerHTML += '<div class="chat-message user">' + msg + '</div>';
+        container.innerHTML += `<div class="chat-message user">${msg}</div>`;
         input.value = '';
         container.scrollTop = container.scrollHeight;
-
         setTimeout(() => {
-            const resp = generateChatResponse(msg.toLowerCase());
-            container.innerHTML += '<div class="chat-message ' + resp.type + '">' + resp.text + '</div>';
+            container.innerHTML += `<div class="chat-message ia">${generateChatResponse(msg)}</div>`;
             container.scrollTop = container.scrollHeight;
-        }, 600);
+        }, 500);
     }
-
-    function quickChat(msg) {
-        document.getElementById('chatInput').value = msg;
-        sendChat();
-    }
-
+    function quickChat(msg) { document.getElementById('chatInput').value = msg; sendChat(); }
     function generateChatResponse(msg) {
-        if (msg.includes('stock') || msg.includes('inventario')) {
-            const total = inventario.reduce((s, p) => s + (p.Stock_actual || 0), 0);
-            const bajos = inventario.filter(p => (p.Stock_actual || 0) <= (p.Stock_minimo || 5));
-            let text = '<strong>Resumen de Stock</strong><br>Total de unidades: ' + total + '<br>Productos: ' + inventario.length + '<br>';
-            if (bajos.length > 0) {
-                text += '<br><strong style="color:var(--warning)">Productos con stock bajo:</strong><br>';
-                bajos.slice(0, 5).forEach(p => { text += '- ' + p.Nombre_completo + ' (' + p.Stock_actual + ' unid.)<br>'; });
-            } else {
-                text += '<br>Todo el stock está en niveles normales.';
-            }
-            return {text: text, type: 'ia'};
-        }
-
-        if (msg.includes('venta') || msg.includes('vendido')) {
-            const hoy = new Date().toISOString().split('T')[0];
-            const ventasHoy = movimientos.filter(m => (m.Fecha || '').startsWith(hoy) && m.Tipo === 'venta');
-            const totalHoy = ventasHoy.reduce((s, m) => s + parseFloat(m.Total || 0), 0);
-            const cantHoy = ventasHoy.reduce((s, m) => s + parseInt(m.Cantidad || 0), 0);
-            return {text: '<strong>Ventas de Hoy</strong><br>Total: ' + formatMoney(totalHoy) + '<br>Cantidad de items: ' + cantHoy + '<br>Transacciones: ' + ventasHoy.length, type: 'ia'};
-        }
-
-        if (msg.includes('bajo') || msg.includes('crítico')) {
-            const bajos = inventario.filter(p => (p.Stock_actual || 0) <= (p.Stock_minimo || 5));
-            if (bajos.length === 0) return {text: 'No hay productos con stock bajo. Todo está bien!', type: 'ia'};
-            let text = '<strong>Productos con Stock Bajo:</strong><br>';
-            bajos.slice(0, 10).forEach(p => { text += '- ' + p.Nombre_completo + ': ' + p.Stock_actual + ' (min: ' + p.Stock_minimo + ')<br>'; });
-            return {text: text, type: 'recomendacion'};
-        }
-
-        if (msg.includes('recomend') || msg.includes('sugerencia')) {
-            const dormidos = inventario.filter(p => (p.ventas || 0) < 2 && (p.Stock_actual || 0) > 20);
-            const bajos = inventario.filter(p => (p.Stock_actual || 0) <= (p.Stock_minimo || 5));
-            let text = '<strong>Recomendaciones:</strong><br>';
-            if (bajos.length > 0) {
-                text += '<br>1. <strong>Reponer urgentemente:</strong><br>';
-                bajos.slice(0, 3).forEach(p => { text += '   - ' + p.Nombre_completo + '<br>'; });
-            }
-            if (dormidos.length > 0) {
-                text += '<br>2. <strong>Considerar promociones para:</strong><br>';
-                dormidos.slice(0, 3).forEach(p => { text += '   - ' + p.Nombre_completo + ' (' + (p.ventas || 0) + ' ventas)<br>'; });
-            }
-            const top = [...inventario].sort((a, b) => (b.ventas || 0) - (a.ventas || 0))[0];
-            if (top) text += '<br>3. <strong>Producto estrella:</strong> ' + top.Nombre_completo + ' (' + (top.ventas || 0) + ' ventas)';
-            return {text: text, type: 'recomendacion'};
-        }
-
-        if (msg.includes('ganancia') || msg.includes('rentabilidad') || msg.includes('utilidad')) {
-            const totalVentas = movimientos.filter(m => m.Tipo === 'venta').reduce((s, m) => s + parseFloat(m.Total || 0), 0);
-            // Para gastos, necesitaríamos otra hoja. Por ahora, solo mostramos ingresos.
-            return {text: '<strong>Análisis de Rentabilidad</strong><br>Ingresos totales: ' + formatMoney(totalVentas) + '<br>Gastos: No registrados (puedes agregar una hoja de gastos)', type: 'ia'};
-        }
-
-        if (msg.includes('hola') || msg.includes('buen') || msg.includes('hey')) {
-            return {text: '¡Hola! ¿En qué puedo ayudarte hoy? Puedes preguntarme sobre stock, ventas, rentabilidad o pedirme recomendaciones.', type: 'ia'};
-        }
-
-        return {text: 'Entiendo. Puedo ayudarte con: consultas de stock, resumen de ventas, productos con stock bajo, análisis de rentabilidad y recomendaciones de inventario. ¿Qué necesitas?', type: 'ia'};
+        if (msg.includes('stock')) return `Hay ${inventario.reduce((s,p) => s + p.Stock_actual, 0)} unidades en total.`;
+        if (msg.includes('venta')) return `Hoy se han registrado ${movimientos.filter(m => m.Tipo === 'venta' && m.Fecha.startsWith(new Date().toISOString().split('T')[0])).length} transacciones.`;
+        return 'Puedo ayudarte con stock, ventas y rentabilidad.';
     }
 
     // ============================================
@@ -1123,33 +1164,9 @@
         document.querySelectorAll('.theme-option').forEach(el => el.classList.remove('active'));
         document.querySelector('.theme-option.' + theme).classList.add('active');
     }
-
     function saveSettings() {
-        const sheetId = document.getElementById('settingsSheetId').value.trim();
-        const webhook = document.getElementById('settingsWebhookUrl').value.trim();
-        localStorage.setItem('lumin_sheetId', sheetId);
-        localStorage.setItem('lumin_webhook', webhook);
+        localStorage.setItem('lumin_sheetId', document.getElementById('settingsSheetId').value);
         showToast('Configuración guardada', 'success');
-    }
-
-    function updateStoreName() {
-        storeName = document.getElementById('settingsStoreName').value;
-        localStorage.setItem('lumin_storeName', storeName);
-    }
-
-    function updateAvatar(input) {
-        if (input.files && input.files[0]) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                document.getElementById('userAvatar').innerHTML = '<img src="' + e.target.result + '" alt="avatar">';
-                localStorage.setItem('lumin_avatar', e.target.result);
-            };
-            reader.readAsDataURL(input.files[0]);
-        }
-    }
-
-    function refreshData() {
-        fetchData();
     }
 
     // ============================================
@@ -1158,39 +1175,18 @@
     function openModal(type) {
         document.getElementById('modal' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
     }
-
     function closeModal(type) {
         document.getElementById('modal' + type.charAt(0).toUpperCase() + type.slice(1)).classList.remove('active');
     }
 
-    function guardarProducto() {
-        // Esta función debería hacer un POST a un endpoint de creación de producto, pero por ahora solo mostramos un mensaje
-        // Como no tenemos endpoint de creación, lo dejamos como placeholder
-        showToast('Función en desarrollo: agregar producto vía API', 'warning');
-        closeModal('producto');
-    }
-
-    function openEditModal(sku) {
-        const prod = inventario.find(p => p.SKU === sku);
-        if (!prod) return;
-        document.getElementById('editSKU').value = sku;
-        document.getElementById('editPrecio').value = prod.Precio_venta_actual;
-        document.getElementById('editStock').value = prod.Stock_actual;
-        openModal('editar');
-    }
-
-    function actualizarProducto() {
-        // Similar, debería hacer PUT a API, pero placeholder
-        showToast('Función en desarrollo: actualizar producto vía API', 'warning');
-        closeModal('editar');
-    }
-
-    // Cargar avatar guardado
+    // ============================================
+    // INICIALIZACIÓN
+    // ============================================
     window.addEventListener('load', () => {
-        const savedAvatar = localStorage.getItem('lumin_avatar');
-        if (savedAvatar) {
-            document.getElementById('userAvatar').innerHTML = '<img src="' + savedAvatar + '" alt="avatar">';
-        }
+        const savedTheme = localStorage.getItem('lumin_theme') || 'dark';
+        setTheme(savedTheme);
+        const savedSheet = localStorage.getItem('lumin_sheetId') || '';
+        document.getElementById('settingsSheetId').value = savedSheet;
     });
     </script>
 </body>
