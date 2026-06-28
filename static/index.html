@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ============================================================
-           ESTILOS (diseño de Kimi, ligeramente adaptado)
+           ESTILOS (diseño de Kimi)
            ============================================================ */
         :root {
             --primary: #8B5CF6;
@@ -751,17 +751,8 @@
 // ================================================================
 //  CONFIGURACIÓN Y ESTADO
 // ================================================================
+// 🟢 CONTRASEÑA CORRECTA: Lumin2026
 const ACCESS_PASSWORD = "Lumin2026";
-const BACKUP_PASSWORD = "admin";
-
-function doLogin() {
-    const pass = document.getElementById('loginPass').value;
-    if (pass === ACCESS_PASSWORD || pass === BACKUP_PASSWORD) {
-        // ... login exitoso
-    } else {
-        // error
-    }
-}
 
 let products = [];
 let movements = [];
@@ -792,7 +783,6 @@ function loadStoreConfig() {
             boletaNum = parseInt(localStorage.getItem('lumin_boletaNum')) || 1;
         } catch(e) {}
     }
-    // Sincronizar inputs
     document.getElementById('tiendaNombre').value = storeConfig.nombre;
     document.getElementById('tiendaRUC').value = storeConfig.ruc;
     document.getElementById('tiendaDireccion').value = storeConfig.direccion;
@@ -878,6 +868,7 @@ function doLogin() {
         document.getElementById('loginError').style.display = 'none';
     } else {
         document.getElementById('loginError').style.display = 'block';
+        document.getElementById('loginError').textContent = 'Contraseña incorrecta. Intenta de nuevo.';
         setTimeout(() => document.getElementById('loginError').style.display = 'none', 3000);
     }
 }
