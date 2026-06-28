@@ -141,7 +141,7 @@ def api_movimientos():
         return jsonify([])
     registros = hoja.get_all_records()
     registros.sort(key=lambda x: x.get('Fecha', ''), reverse=True)
-    return jsonify(registros)  # sin límite
+    return jsonify(registros)
 
 @app.route('/api/ventas/hoy')
 def api_ventas_hoy():
@@ -291,8 +291,8 @@ def api_boleta(boleta_id):
     if not items:
         return jsonify({"error": "Boleta no encontrada"}), 404
     subtotal = sum(parse_decimal(r.get('Total_fila', 0)) for r in items)
-    igv = round(subtotal - (subtotal / 1.18), 2)  # IGV incluido
-    total = subtotal  # ya incluye IGV
+    igv = round(subtotal - (subtotal / 1.18), 2)
+    total = subtotal
     return jsonify({
         'boleta_id': boleta_id,
         'fecha': items[0].get('Fecha') if items else '',
@@ -312,6 +312,9 @@ def api_anular_venta():
     boleta_id = data.get('boleta_id')
     razon = data.get('razon', 'Anulación manual')
 
+    if not boleta_id:
+        return jsonify({"error": "Falta número de boleta"}), 400
+
     hoja_boletas = get_worksheet('boletas')
     registros = hoja_boletas.get_all_records()
     items = [r for r in registros if parse_int(r.get('ID_Boleta', 0)) == boleta_id]
@@ -320,24 +323,21 @@ def api_anular_venta():
 
     # Revertir stock
     hoja_inv = get_worksheet('inventario')
-    inv_registros = hoja_inv.get_all_records()
     for item in items:
         sku = item.get('SKU')
         cantidad = parse_int(item.get('Cantidad', 0))
-        for prod in inv_registros:
-            if prod.get('SKU') == sku:
-                stock_actual = parse_int(prod.get('Stock_actual', 0))
+        # Buscar producto en inventario
+        filas_inv = hoja_inv.get_all_values()
+        for i, fila in enumerate(filas_inv):
+            if fila and fila[0] == sku:
+                stock_actual = parse_int(fila[10])  # columna K (Stock_actual)
                 nuevo_stock = stock_actual + cantidad
-                # Buscar fila y actualizar
-                filas = hoja_inv.get_all_values()
-                for i, fila in enumerate(filas):
-                    if fila and fila[0] == sku:
-                        hoja_inv.update_cell(i+1, 11, nuevo_stock)
-                        break
+                hoja_inv.update_cell(i+1, 11, nuevo_stock)
+                estado = "OK" if nuevo_stock > 5 else "Bajo"
+                hoja_inv.update_cell(i+1, 13, estado)
                 break
 
-    # Marcar boleta como anulada (agregar columna Estado si no existe, o usar columna existente)
-    # Por simplicidad, agregamos una fila en movimientos con tipo "venta_anulada"
+    # Marcar en movimientos (añadir una fila de anulación)
     hoja_mov = get_worksheet('movimientos')
     hoja_mov.append_row([
         ahora_iso(), '', 'venta_anulada', 0, 0, 0, f'Boleta #{boleta_id}', 'web_user', razon
@@ -411,7 +411,7 @@ def api_registrar_venta():
             cantidad, precio_real, costo, ganancia_unidad, ganancia_unidad * cantidad, vendedor
         ])
         hoja_mov.append_row([
-            now, sku, 'venta', cantidad, precio_real, cantidad * precio_real, '', vendedor, ''
+            now, sku, 'venta', cantidad, precio_real, cantidad * precio_real, id_boleta, vendedor, ''
         ])
         precio_sugerido = parse_decimal(prod.get('Precio_venta_actual', 0))
         diferencia = precio_real - precio_sugerido
