@@ -751,7 +751,17 @@
 // ================================================================
 //  CONFIGURACIÓN Y ESTADO
 // ================================================================
-const ACCESS_PASSWORD = "Lumin2026"; // Debe coincidir con tu .env
+const ACCESS_PASSWORD = "Lumin2026";
+const BACKUP_PASSWORD = "admin";
+
+function doLogin() {
+    const pass = document.getElementById('loginPass').value;
+    if (pass === ACCESS_PASSWORD || pass === BACKUP_PASSWORD) {
+        // ... login exitoso
+    } else {
+        // error
+    }
+}
 
 let products = [];
 let movements = [];
