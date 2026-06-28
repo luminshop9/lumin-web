@@ -9,7 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
-        /* ======== DISEÑO ORIGINAL (RECUPERADO) ======== */
+        /* ============================================================
+           DISEÑO ORIGINAL RECUPERADO (con todas las mejoras)
+           ============================================================ */
         :root {
             --primary: #8B5CF6;
             --primary-light: #A78BFA;
@@ -89,7 +91,6 @@
         .top-bar-title p { color: var(--text-muted); font-size: 14px; }
         .top-bar-actions { display: flex; align-items: center; gap: 12px; }
 
-        /* ======== BOTONES ======== */
         .btn-icon { width: 44px; height: 44px; border-radius: 12px; background: var(--bg-card); border: 1px solid var(--border); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.3s ease; font-size: 16px; }
         .btn-icon:hover { background: var(--bg-card-hover); color: var(--text-primary); border-color: var(--primary); }
         .btn-primary { padding: 12px 24px; background: var(--gradient-1); border: none; border-radius: 12px; color: white; font-size: 14px; font-weight: 600; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 8px; box-shadow: 0 4px 16px rgba(139, 92, 246, 0.3); }
@@ -100,7 +101,6 @@
         .btn-danger:hover { opacity: 0.9; transform: translateY(-2px); }
         .btn-small { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
 
-        /* ======== TARJETAS ESTADÍSTICAS ======== */
         .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px; margin-bottom: 32px; }
         .stat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 24px; position: relative; overflow: hidden; transition: all 0.3s ease; }
         .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gradient-1); opacity: 0; transition: opacity 0.3s ease; }
@@ -122,27 +122,23 @@
         .stat-value { font-size: 28px; font-weight: 700; margin-bottom: 4px; color: var(--text-primary); }
         .stat-label { font-size: 13px; color: var(--text-muted); font-weight: 500; }
 
-        /* ======== SECCIONES Y TARJETAS ======== */
         .section-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 24px; margin-bottom: 24px; }
         .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
         .section-title { font-size: 18px; font-weight: 700; }
         .section-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
 
-        /* ======== BUSCADOR ======== */
         .search-bar { display: flex; align-items: center; gap: 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; padding: 10px 16px; flex: 1; max-width: 400px; }
         .search-bar i { color: var(--text-muted); font-size: 16px; }
         .search-bar input { background: none; border: none; color: var(--text-primary); font-size: 14px; font-family: 'Inter', sans-serif; outline: none; width: 100%; }
         .search-bar input::placeholder { color: var(--text-muted); }
         .filter-select { padding: 10px 16px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-primary); font-size: 14px; font-family: 'Inter', sans-serif; outline: none; cursor: pointer; }
 
-        /* ======== TABLAS ======== */
         .data-table { width: 100%; border-collapse: collapse; }
         .data-table th { text-align: left; padding: 14px 16px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
         .data-table td { padding: 14px 16px; font-size: 14px; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
         .data-table tr:hover td { background: var(--bg-card-hover); }
         .data-table tr:last-child td { border-bottom: none; }
 
-        /* ======== BADGES ======== */
         .badge { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600; }
         .badge-success { background: rgba(16, 185, 129, 0.15); color: var(--success); }
         .badge-danger { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
@@ -150,7 +146,6 @@
         .badge-info { background: rgba(59, 130, 246, 0.15); color: var(--info); }
         .badge-purple { background: rgba(139, 92, 246, 0.15); color: var(--primary-light); }
 
-        /* ======== INDICADOR DE STOCK ======== */
         .stock-indicator { display: flex; align-items: center; gap: 8px; }
         .stock-bar { width: 60px; height: 6px; background: var(--bg-dark); border-radius: 3px; overflow: hidden; }
         .stock-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
@@ -158,7 +153,6 @@
         .stock-bar-fill.medium { background: var(--warning); }
         .stock-bar-fill.low { background: var(--danger); }
 
-        /* ======== PRODUCTOS ======== */
         .product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; max-height: 500px; overflow-y: auto; padding-right: 8px; }
         .product-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 16px; cursor: pointer; transition: all 0.3s ease; position: relative; }
         .product-card:hover { transform: translateY(-2px); border-color: var(--primary); box-shadow: var(--shadow); }
@@ -171,7 +165,6 @@
         .product-card-price { font-size: 18px; font-weight: 700; color: var(--primary-light); }
         .product-card-stock { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
 
-        /* ======== CARRITO ======== */
         .cart-panel { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 24px; position: sticky; top: 24px; }
         .cart-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
         .cart-item:last-child { border-bottom: none; }
@@ -185,7 +178,6 @@
         .cart-total-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; color: var(--text-secondary); }
         .cart-total-row.total { font-size: 18px; font-weight: 700; color: var(--text-primary); margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
 
-        /* ======== CHAT ======== */
         .chat-container { display: flex; flex-direction: column; height: 500px; }
         .chat-messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
         .chat-message { max-width: 80%; padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.5; }
@@ -196,7 +188,6 @@
         .chat-input { flex: 1; padding: 12px 16px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 12px; color: var(--text-primary); font-size: 14px; font-family: 'Inter', sans-serif; outline: none; }
         .chat-input:focus { border-color: var(--primary); }
 
-        /* ======== MODALES ======== */
         .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.7); display: flex; align-items: center; justify-content: center; z-index: 1000; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
         .modal-overlay.active { opacity: 1; pointer-events: all; }
         .modal { background: var(--bg-card); border: 1px solid var(--border); border-radius: 24px; padding: 32px; width: 90%; max-width: 600px; max-height: 90vh; overflow-y: auto; transform: translateY(20px); transition: transform 0.3s ease; }
@@ -211,18 +202,19 @@
         .form-input:focus, .form-select:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.15); }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
-        /* ======== BOLETA ======== */
         .boleta-content { background: white; color: #1a1033; padding: 24px; border-radius: 12px; font-family: 'Courier New', monospace; max-width: 400px; margin: 0 auto; }
-        .boleta-content .store-name { font-size: 20px; font-weight: 800; text-align: center; margin-bottom: 4px; }
-        .boleta-content .store-info { text-align: center; font-size: 12px; color: #555; margin-bottom: 16px; }
+        .boleta-content .store-name { font-size: 20px; font-weight: 800; text-align: center; margin-bottom: 2px; }
+        .boleta-content .store-info { text-align: center; font-size: 12px; color: #555; margin-bottom: 4px; }
+        .boleta-content .store-logo { text-align: center; margin-bottom: 8px; }
+        .boleta-content .store-logo img { max-width: 80px; max-height: 80px; border-radius: 8px; }
         .boleta-content .boleta-header { display: flex; justify-content: space-between; font-size: 12px; border-bottom: 1px dashed #333; padding-bottom: 8px; margin-bottom: 8px; }
+        .boleta-content .cliente-row { font-size: 12px; border-bottom: 1px dotted #ddd; padding-bottom: 4px; margin-bottom: 4px; }
         .boleta-content .item-row { display: flex; justify-content: space-between; font-size: 13px; padding: 4px 0; border-bottom: 1px dotted #ddd; }
         .boleta-content .totals { border-top: 1px dashed #333; padding-top: 8px; margin-top: 8px; }
         .boleta-content .totals div { display: flex; justify-content: space-between; font-size: 14px; }
         .boleta-content .totals .total { font-weight: 800; font-size: 18px; margin-top: 4px; }
         .boleta-actions { display: flex; gap: 12px; margin-top: 16px; justify-content: center; }
 
-        /* ======== OTROS ======== */
         .section { display: none; }
         .section.active { display: block; animation: fadeIn 0.4s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
@@ -284,7 +276,6 @@
         .theme-option.light { background: #F8F6FF; border: 1px solid #E0D8F0; }
         .theme-option.amoled { background: #000000; border: 1px solid #333; }
 
-        /* ======== RESPONSIVE ======== */
         @media (max-width: 1024px) {
             .sidebar { transform: translateX(-100%); }
             .sidebar.open { transform: translateX(0); }
@@ -416,7 +407,10 @@
                     </div>
                     <div class="cart-panel">
                         <h3 style="margin-bottom: 16px; font-size: 18px;"><i class="fas fa-shopping-cart" style="color: var(--primary-light);"></i> Carrito</h3>
-                        <div id="cartItems" style="max-height: 300px; overflow-y: auto;">
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <input type="text" class="form-input" id="clienteInput" placeholder="Cliente (opcional)" style="padding: 8px 12px; font-size: 13px;">
+                        </div>
+                        <div id="cartItems" style="max-height: 260px; overflow-y: auto;">
                             <div class="empty-state" style="padding: 24px;"><i class="fas fa-cart-plus"></i><p>Agrega productos al carrito</p></div>
                         </div>
                         <div class="cart-totals">
@@ -512,7 +506,7 @@
                     <button class="btn-secondary" style="padding: 8px 16px; font-size: 12px;" onclick="quickChat('¿Cómo va mi negocio?')"><i class="fas fa-chart-line"></i> Resumen</button>
                     <button class="btn-secondary" style="padding: 8px 16px; font-size: 12px;" onclick="quickChat('¿Qué productos están bajos?')"><i class="fas fa-exclamation-triangle"></i> Stock bajo</button>
                     <button class="btn-secondary" style="padding: 8px 16px; font-size: 12px;" onclick="quickChat('¿Qué debo comprar?')"><i class="fas fa-shopping-bag"></i> Recompras</button>
-                    <button class="btn-secondary" style="padding: 8px 16px; font-size: 12px;" onclick="quickChat('Recomendaciones para hoy')"><i class="fas fa-lightbulb"></i> Recomendaciones</button>
+                    <button class="btn-secondary" style="padding: 8px 16px; font-size: 12px;" onclick="quickChat('Recomendaciones para hoy')"><i class="fas fa-lightbulb"></i> Sugerencias</button>
                 </div>
             </div>
 
@@ -520,9 +514,12 @@
             <div class="section" id="section-ajustes">
                 <div class="top-bar"><div class="top-bar-title"><h1>Ajustes</h1><p>Configuración de la aplicación</p></div></div>
                 <div class="section-card">
-                    <div class="section-header"><div class="section-title">Personalización</div></div>
+                    <div class="section-header"><div class="section-title">Datos de la Tienda</div></div>
                     <div class="form-group"><label class="form-label">Nombre de la Tienda</label><input type="text" class="form-input" id="settingsStoreName" value="LUMIN Store" onchange="saveSettings()"></div>
+                    <div class="form-group"><label class="form-label">RUC</label><input type="text" class="form-input" id="settingsRuc" value="00000000000" onchange="saveSettings()"></div>
+                    <div class="form-group"><label class="form-label">Dirección</label><input type="text" class="form-input" id="settingsDireccion" value="Av. Principal 123" onchange="saveSettings()"></div>
                     <div class="form-group"><label class="form-label">Teléfono</label><input type="text" class="form-input" id="settingsPhone" value="999 999 999" onchange="saveSettings()"></div>
+                    <div class="form-group"><label class="form-label">Logo (URL de imagen)</label><input type="text" class="form-input" id="settingsLogo" value="" placeholder="https://ejemplo.com/logo.png" onchange="saveSettings()"></div>
                     <div class="form-group"><label class="form-label">Próximo Número de Boleta</label><input type="number" class="form-input" id="settingsBoletaNum" value="934416062" onchange="saveSettings()"></div>
                 </div>
                 <div class="section-card">
@@ -581,9 +578,12 @@
         <div class="modal" style="max-width: 500px;">
             <div class="modal-header"><div class="modal-title">Boleta Electrónica</div><button class="modal-close" onclick="closeModal('boleta')"><i class="fas fa-times"></i></button></div>
             <div id="boletaContent" class="boleta-content">
+                <div class="store-logo" id="boletaLogo"></div>
                 <div class="store-name" id="boletaStoreName">LUMIN Store</div>
-                <div class="store-info" id="boletaStorePhone">Tel: 999 999 999</div>
+                <div class="store-info" id="boletaStoreInfo">RUC: 00000000000 | Tel: 999 999 999</div>
+                <div class="store-info" id="boletaStoreDireccion">Av. Principal 123</div>
                 <div class="boleta-header"><span>Boleta #<span id="boletaId">0000</span></span><span id="boletaFecha">--/--/----</span></div>
+                <div class="cliente-row" id="boletaCliente" style="display:none;">Cliente: <span id="boletaClienteNombre"></span></div>
                 <div id="boletaItems"></div>
                 <div class="totals">
                     <div><span>Subtotal</span><span id="boletaSubtotal">S/ 0.00</span></div>
@@ -633,7 +633,7 @@
 
     function setSession() {
         localStorage.setItem('lumin_logged', 'true');
-        localStorage.setItem('lumin_expires', String(Date.now() + 24 * 60 * 60 * 1000)); // 24h
+        localStorage.setItem('lumin_expires', String(Date.now() + 24 * 60 * 60 * 1000));
     }
 
     function clearSession() {
@@ -889,13 +889,14 @@
             return;
         }
 
+        const cliente = document.getElementById('clienteInput').value.trim();
         const items = carrito.map(item => ({ sku: item.sku, cantidad: item.cantidad, precio: item.precio }));
 
         try {
             const resp = await fetch('/api/venta', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ items, vendedor: 'web_user' })
+                body: JSON.stringify({ items, vendedor: 'web_user', cliente })
             });
             const data = await resp.json();
             if (data.error) {
@@ -904,6 +905,7 @@
                 showToast(`Venta registrada exitosamente. Boleta #${data.boleta_id}`, 'success');
                 ultimaBoletaId = data.boleta_id;
                 limpiarCarrito();
+                document.getElementById('clienteInput').value = '';
                 fetchData();
                 verBoleta(data.boleta_id);
             }
@@ -931,9 +933,28 @@
 
             // Datos de la tienda desde ajustes
             const storeName = localStorage.getItem('lumin_storeName') || 'LUMIN Store';
+            const ruc = localStorage.getItem('lumin_ruc') || '00000000000';
             const phone = localStorage.getItem('lumin_phone') || '999 999 999';
+            const direccion = localStorage.getItem('lumin_direccion') || 'Av. Principal 123';
+            const logo = localStorage.getItem('lumin_logo') || '';
+
             document.getElementById('boletaStoreName').textContent = storeName;
-            document.getElementById('boletaStorePhone').textContent = 'Tel: ' + phone;
+            document.getElementById('boletaStoreInfo').textContent = `RUC: ${ruc} | Tel: ${phone}`;
+            document.getElementById('boletaStoreDireccion').textContent = direccion;
+
+            if (logo) {
+                document.getElementById('boletaLogo').innerHTML = `<img src="${logo}" alt="Logo" style="max-width:80px;max-height:80px;border-radius:8px;">`;
+            } else {
+                document.getElementById('boletaLogo').innerHTML = '';
+            }
+
+            // Cliente
+            if (data.cliente) {
+                document.getElementById('boletaCliente').style.display = 'block';
+                document.getElementById('boletaClienteNombre').textContent = data.cliente;
+            } else {
+                document.getElementById('boletaCliente').style.display = 'none';
+            }
 
             let itemsHtml = '';
             data.items.forEach(item => {
@@ -972,7 +993,6 @@
             const stock = p.Stock_actual || 0;
             const min = p.Stock_minimo || 5;
             const stockClass = stock <= min ? 'low' : stock <= min * 2 ? 'medium' : 'high';
-            const stockBadge = stock <= min ? '<span class="badge badge-danger">Bajo</span>' : '<span class="badge badge-success">OK</span>';
             const catBadge = p.Categoria ? `<span class="badge badge-info">${p.Categoria}</span>` : '';
             return `<tr>
                 <td>${p.SKU}</td>
@@ -983,7 +1003,10 @@
                 <td><div class="stock-indicator"><div class="stock-bar"><div class="stock-bar-fill ${stockClass}" style="width:${Math.min(100, (stock / (min * 3)) * 100)}%"></div></div><span>${stock}</span></div></td>
                 <td>${min}</td>
                 <td>${p.Proveedor || ''}</td>
-                <td><button class="btn-icon btn-small" onclick="openEditModal('${p.SKU}')" title="Editar"><i class="fas fa-edit" style="font-size:12px"></i></button></td>
+                <td>
+                    <button class="btn-icon btn-small" onclick="openEditModal('${p.SKU}')" title="Editar"><i class="fas fa-edit" style="font-size:12px"></i></button>
+                    <button class="btn-icon btn-small" onclick="anularVenta('${p.SKU}')" title="Anular" style="color:var(--danger);"><i class="fas fa-ban" style="font-size:12px"></i></button>
+                </td>
             </tr>`;
         }).join('');
     }
@@ -1078,6 +1101,31 @@
     }
 
     // ============================================================
+    //  ANULAR VENTA
+    // ============================================================
+    async function anularVenta(boletaId) {
+        if (!boletaId) return;
+        const razon = prompt('Motivo de anulación (opcional):');
+        if (razon === null) return;
+        try {
+            const resp = await fetch('/api/anular-venta', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ boleta_id: parseInt(boletaId), razon: razon || 'Anulación manual' })
+            });
+            const data = await resp.json();
+            if (data.error) {
+                showToast(data.error, 'error');
+            } else {
+                showToast('Venta anulada correctamente', 'success');
+                fetchData();
+            }
+        } catch (e) {
+            showToast('Error al anular venta', 'error');
+        }
+    }
+
+    // ============================================================
     //  CIERRE DE CAJA
     // ============================================================
     function updateCierre() {
@@ -1140,7 +1188,6 @@
     //  RENTABILIDAD
     // ============================================================
     function updateRentabilidad() {
-        // Top 5
         const ventas = movimientos.filter(m => m.Tipo === 'venta');
         const prodCount = {};
         ventas.forEach(m => {
@@ -1168,7 +1215,6 @@
             }).join('');
         }
 
-        // Dormidos
         const vendidos = new Set(ventas.map(m => m.SKU || m.Producto));
         const dormidos = inventario.filter(p => !vendidos.has(p.SKU) && p.Stock_actual > 0);
         const dormContainer = document.getElementById('productosDormidos');
@@ -1213,7 +1259,6 @@
     function generarRespuestaChat(msg) {
         const lower = msg.toLowerCase();
 
-        // ========== RESPUESTAS INTELIGENTES ==========
         if (lower.includes('cómo va mi negocio') || lower.includes('resumen') || lower.includes('balance')) {
             const ventas = movimientos.filter(m => m.Tipo === 'venta');
             const totalVentas = ventas.reduce((s, m) => s + parseFloat(m.Total || 0), 0);
@@ -1282,7 +1327,6 @@
             ${restante > 0 ? `⏳ Te faltan ${formatMoney(restante)} para cumplir la meta.` : '🎉 ¡Meta cumplida! Sigue así.'}`;
         }
 
-        // Respuesta por defecto
         return '🤖 Puedo ayudarte con: resumen del negocio, stock bajo, recomendaciones de compra, meta de ventas. ¿Qué necesitas saber?';
     }
 
@@ -1298,10 +1342,16 @@
 
     function saveSettings() {
         const storeName = document.getElementById('settingsStoreName').value;
+        const ruc = document.getElementById('settingsRuc').value;
+        const direccion = document.getElementById('settingsDireccion').value;
         const phone = document.getElementById('settingsPhone').value;
+        const logo = document.getElementById('settingsLogo').value;
         const boletaNum = document.getElementById('settingsBoletaNum').value;
         localStorage.setItem('lumin_storeName', storeName);
+        localStorage.setItem('lumin_ruc', ruc);
+        localStorage.setItem('lumin_direccion', direccion);
         localStorage.setItem('lumin_phone', phone);
+        localStorage.setItem('lumin_logo', logo);
         localStorage.setItem('lumin_boletaNum', boletaNum);
         showToast('Configuración guardada', 'success');
     }
@@ -1321,19 +1371,22 @@
     //  INICIALIZACIÓN
     // ============================================================
     window.addEventListener('load', () => {
-        // Cargar tema guardado
         const savedTheme = localStorage.getItem('lumin_theme') || 'dark';
         setTheme(savedTheme);
 
-        // Cargar ajustes
         const storeName = localStorage.getItem('lumin_storeName') || 'LUMIN Store';
+        const ruc = localStorage.getItem('lumin_ruc') || '00000000000';
+        const direccion = localStorage.getItem('lumin_direccion') || 'Av. Principal 123';
         const phone = localStorage.getItem('lumin_phone') || '999 999 999';
+        const logo = localStorage.getItem('lumin_logo') || '';
         const boletaNum = localStorage.getItem('lumin_boletaNum') || '934416062';
         document.getElementById('settingsStoreName').value = storeName;
+        document.getElementById('settingsRuc').value = ruc;
+        document.getElementById('settingsDireccion').value = direccion;
         document.getElementById('settingsPhone').value = phone;
+        document.getElementById('settingsLogo').value = logo;
         document.getElementById('settingsBoletaNum').value = boletaNum;
 
-        // Verificar sesión
         if (!checkSession()) {
             document.getElementById('loginScreen').classList.remove('hidden');
         }
