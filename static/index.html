@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         /* ============================================================
-           ESTILOS (diseño de Kimi)
+           ESTILOS (diseño de Kimi) - SIN CAMBIOS
            ============================================================ */
         :root {
             --primary: #8B5CF6;
@@ -823,7 +823,8 @@ function getNow() {
     return new Date().toLocaleString('es-PE');
 }
 
-function showToast(message, type = 'info') {
+function showToast(message, type) {
+    if (type === undefined) type = 'info';
     const container = document.getElementById('toastContainer');
     const toast = document.createElement('div');
     toast.className = 'toast ' + type;
@@ -832,9 +833,9 @@ function showToast(message, type = 'info') {
     if (type === 'error') icon = 'fa-exclamation-circle';
     toast.innerHTML = '<i class="fas ' + icon + '" style="color:var(--' + (type==='success'?'accent-green':type==='error'?'accent-red':'primary') + ');"></i><span>' + message + '</span>';
     container.appendChild(toast);
-    setTimeout(() => {
+    setTimeout(function() {
         toast.style.animation = 'slideOutRight 0.3s ease forwards';
-        setTimeout(() => toast.remove(), 300);
+        setTimeout(function() { toast.remove(); }, 300);
     }, 3000);
 }
 
@@ -848,7 +849,7 @@ function confetti() {
         el.style.animationDuration = (2 + Math.random() * 2) + 's';
         el.style.animationDelay = Math.random() * 0.5 + 's';
         document.body.appendChild(el);
-        setTimeout(() => el.remove(), 4000);
+        setTimeout(function() { el.remove(); }, 4000);
     }
 }
 
@@ -856,7 +857,7 @@ function confetti() {
 //  LOGIN
 // ================================================================
 function doLogin() {
-    const pass = document.getElementById('loginPass').value;
+    var pass = document.getElementById('loginPass').value;
     if (pass === ACCESS_PASSWORD) {
         document.getElementById('loginScreen').style.display = 'none';
         document.getElementById('mainApp').style.display = 'block';
@@ -869,7 +870,9 @@ function doLogin() {
     } else {
         document.getElementById('loginError').style.display = 'block';
         document.getElementById('loginError').textContent = 'Contraseña incorrecta. Intenta de nuevo.';
-        setTimeout(() => document.getElementById('loginError').style.display = 'none', 3000);
+        setTimeout(function() {
+            document.getElementById('loginError').style.display = 'none';
+        }, 3000);
     }
 }
 
@@ -932,10 +935,10 @@ function loadDemoData() {
 //  NAVEGACIÓN
 // ================================================================
 function navigateTo(section) {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
     document.getElementById('section-' + section).classList.add('active');
-    document.querySelectorAll('.bottom-nav-item').forEach(i => i.classList.remove('active'));
-    const navItem = document.querySelector('.bottom-nav-item[data-section="' + section + '"]');
+    document.querySelectorAll('.bottom-nav-item').forEach(function(i) { i.classList.remove('active'); });
+    var navItem = document.querySelector('.bottom-nav-item[data-section="' + section + '"]');
     if (navItem) navItem.classList.add('active');
     currentSection = section;
 
@@ -954,19 +957,19 @@ function navigateTo(section) {
 }
 
 function updateFAB() {
-    const fab = document.getElementById('fabBtn');
+    var fab = document.getElementById('fabBtn');
     if (currentSection === 'inventario') {
-        fab.onclick = () => openModal('modalProducto');
+        fab.onclick = function() { openModal('modalProducto'); };
         fab.innerHTML = '<i class="fas fa-plus"></i>';
         fab.style.display = 'flex';
     } else if (currentSection === 'clientes') {
-        fab.onclick = () => openModal('modalCliente');
+        fab.onclick = function() { openModal('modalCliente'); };
         fab.innerHTML = '<i class="fas fa-plus"></i>';
         fab.style.display = 'flex';
     } else if (currentSection === 'ventas') {
         fab.style.display = 'none';
     } else {
-        fab.onclick = () => navigateTo('ventas');
+        fab.onclick = function() { navigateTo('ventas'); };
         fab.innerHTML = '<i class="fas fa-shopping-cart"></i>';
         fab.style.display = 'flex';
     }
@@ -1019,15 +1022,15 @@ function closeModal(id) {
 //  DASHBOARD
 // ================================================================
 function refreshDashboard() {
-    const total = products.length;
-    const stockOk = products.filter(p => p.Stock_actual > p.Stock_minimo).length;
-    const stockBajo = products.filter(p => p.Stock_actual <= p.Stock_minimo && p.Stock_actual > 0).length;
-    const stockCero = products.filter(p => p.Stock_actual === 0).length;
+    var total = products.length;
+    var stockOk = products.filter(function(p) { return p.Stock_actual > p.Stock_minimo; }).length;
+    var stockBajo = products.filter(function(p) { return p.Stock_actual <= p.Stock_minimo && p.Stock_actual > 0; }).length;
+    var stockCero = products.filter(function(p) { return p.Stock_actual === 0; }).length;
 
     // Ganancia hoy = suma de ventas de hoy (ganancia total)
-    const hoy = getToday();
-    const ventasHoy = movements.filter(m => m.Tipo === 'venta' && (m.Fecha || '').startsWith(hoy));
-    const gananciaHoy = ventasHoy.reduce((sum, v) => sum + parsePrecio(v.Ganancia_total || 0), 0);
+    var hoy = getToday();
+    var ventasHoy = movements.filter(function(m) { return m.Tipo === 'venta' && (m.Fecha || '').startsWith(hoy); });
+    var gananciaHoy = ventasHoy.reduce(function(sum, v) { return sum + parsePrecio(v.Ganancia_total || 0); }, 0);
 
     document.getElementById('dashGanancia').textContent = formatMoney(gananciaHoy);
     document.getElementById('dashTotalProd').textContent = total;
@@ -1035,15 +1038,15 @@ function refreshDashboard() {
     document.getElementById('dashStockBajo').textContent = stockBajo + stockCero;
 
     // Tabla stock bajo
-    const tbody = document.querySelector('#dashStockBajoTable tbody');
-    const bajos = products.filter(p => p.Stock_actual <= p.Stock_minimo);
+    var tbody = document.querySelector('#dashStockBajoTable tbody');
+    var bajos = products.filter(function(p) { return p.Stock_actual <= p.Stock_minimo; });
     if (bajos.length === 0) {
         document.getElementById('dashStockBajoTable').style.display = 'none';
         document.getElementById('dashStockBajoEmpty').style.display = 'block';
     } else {
         document.getElementById('dashStockBajoTable').style.display = 'table';
         document.getElementById('dashStockBajoEmpty').style.display = 'none';
-        tbody.innerHTML = bajos.map(p => '<tr><td>' + p.Nombre_completo + '</td><td>' + p.Stock_actual + '</td><td>' + p.Stock_minimo + '</td></tr>').join('');
+        tbody.innerHTML = bajos.map(function(p) { return '<tr><td>' + p.Nombre_completo + '</td><td>' + p.Stock_actual + '</td><td>' + p.Stock_minimo + '</td></tr>'; }).join('');
     }
 }
 
@@ -1052,27 +1055,30 @@ function refreshDashboard() {
 // ================================================================
 function renderVentas() {
     // Categorías
-    const cats = [...new Set(products.map(p => p.Categoria).filter(Boolean))];
-    const catRow = document.getElementById('ventasCategorias');
-    catRow.innerHTML = '<button class="filter-chip active" onclick="filterByCat('all')">Todos</button>' +
-        cats.map(c => '<button class="filter-chip" onclick="filterByCat('' + c + '')">' + c + '</button>').join('');
+    var cats = [];
+    products.forEach(function(p) { if (p.Categoria && cats.indexOf(p.Categoria) === -1) cats.push(p.Categoria); });
+    var catRow = document.getElementById('ventasCategorias');
+    catRow.innerHTML = '<button class="filter-chip active" onclick="filterByCat(\'all\')">Todos</button>';
+    cats.forEach(function(c) {
+        catRow.innerHTML += '<button class="filter-chip" onclick="filterByCat(\'' + c + '\')">' + c + '</button>';
+    });
     filterVentas();
 }
 
 function filterByCat(cat) {
     currentFilter = cat;
-    document.querySelectorAll('#ventasCategorias .filter-chip').forEach(btn => {
+    document.querySelectorAll('#ventasCategorias .filter-chip').forEach(function(btn) {
         btn.classList.toggle('active', btn.textContent === (cat === 'all' ? 'Todos' : cat));
     });
     filterVentas();
 }
 
 function filterVentas() {
-    const search = document.getElementById('ventasSearch').value.toLowerCase();
-    const grid = document.getElementById('ventasProductGrid');
-    let filtered = products.filter(p => {
-        const matchSearch = (p.Nombre_completo || '').toLowerCase().includes(search) || (p.SKU || '').toLowerCase().includes(search);
-        const matchCat = currentFilter === 'all' || p.Categoria === currentFilter;
+    var search = document.getElementById('ventasSearch').value.toLowerCase();
+    var grid = document.getElementById('ventasProductGrid');
+    var filtered = products.filter(function(p) {
+        var matchSearch = (p.Nombre_completo || '').toLowerCase().includes(search) || (p.SKU || '').toLowerCase().includes(search);
+        var matchCat = currentFilter === 'all' || p.Categoria === currentFilter;
         return matchSearch && matchCat && p.Stock_actual > 0;
     });
 
@@ -1082,9 +1088,9 @@ function filterVentas() {
     } else {
         grid.style.display = 'grid';
         document.getElementById('ventasEmpty').style.display = 'none';
-        grid.innerHTML = filtered.map(p => {
-            const stockClass = p.Stock_actual <= p.Stock_minimo ? 'low' : 'ok';
-            const stockIcon = p.Stock_actual <= p.Stock_minimo ? 'fa-exclamation-circle' : 'fa-check-circle';
+        grid.innerHTML = filtered.map(function(p) {
+            var stockClass = p.Stock_actual <= p.Stock_minimo ? 'low' : 'ok';
+            var stockIcon = p.Stock_actual <= p.Stock_minimo ? 'fa-exclamation-circle' : 'fa-check-circle';
             return '<div class="product-card" onclick="addToCart(\'' + p.SKU + '\')">' +
                 '<div class="add-badge"><i class="fas fa-plus"></i></div>' +
                 '<div class="sku">' + p.SKU + '</div>' +
@@ -1100,13 +1106,13 @@ function filterVentas() {
 //  CARRITO
 // ================================================================
 function addToCart(sku) {
-    const product = products.find(p => p.SKU === sku);
+    var product = products.find(function(p) { return p.SKU === sku; });
     if (!product) return;
     if (product.Stock_actual <= 0) {
         showToast('Producto sin stock', 'error');
         return;
     }
-    const existing = cart.find(item => item.sku === sku);
+    var existing = cart.find(function(item) { return item.sku === sku; });
     if (existing) {
         if (existing.qty < product.Stock_actual) {
             existing.qty++;
@@ -1129,19 +1135,19 @@ function addToCart(sku) {
 }
 
 function removeFromCart(sku) {
-    cart = cart.filter(item => item.sku !== sku);
+    cart = cart.filter(function(item) { return item.sku !== sku; });
     renderCart();
 }
 
 function updateQty(sku, delta) {
-    const item = cart.find(i => i.sku === sku);
+    var item = cart.find(function(i) { return i.sku === sku; });
     if (!item) return;
-    const newQty = item.qty + delta;
+    var newQty = item.qty + delta;
     if (newQty <= 0) {
         removeFromCart(sku);
         return;
     }
-    const prod = products.find(p => p.SKU === sku);
+    var prod = products.find(function(p) { return p.SKU === sku; });
     if (prod && newQty > prod.Stock_actual) {
         showToast('Stock máximo alcanzado', 'error');
         return;
@@ -1151,9 +1157,9 @@ function updateQty(sku, delta) {
 }
 
 function renderCart() {
-    const itemsDiv = document.getElementById('cartItems');
-    const emptyDiv = document.getElementById('cartEmpty');
-    const totalsDiv = document.getElementById('cartTotals');
+    var itemsDiv = document.getElementById('cartItems');
+    var emptyDiv = document.getElementById('cartEmpty');
+    var totalsDiv = document.getElementById('cartTotals');
 
     if (cart.length === 0) {
         itemsDiv.style.display = 'none';
@@ -1167,7 +1173,7 @@ function renderCart() {
     emptyDiv.style.display = 'none';
     totalsDiv.style.display = 'block';
 
-    itemsDiv.innerHTML = cart.map(item => {
+    itemsDiv.innerHTML = cart.map(function(item) {
         return '<div class="cart-item">' +
             '<div class="cart-item-info">' +
                 '<div class="cart-item-name">' + item.nombre + '</div>' +
@@ -1188,26 +1194,26 @@ function renderCart() {
 }
 
 function updateCartTotals() {
-    const subtotal = cart.reduce((sum, item) => sum + (item.precio * item.qty), 0);
-    const igv = subtotal - (subtotal / 1.18); // IGV incluido
+    var subtotal = cart.reduce(function(sum, item) { return sum + (item.precio * item.qty); }, 0);
+    var igv = subtotal - (subtotal / 1.18); // IGV incluido
 
     document.getElementById('cartSubtotal').textContent = formatMoney(subtotal);
     document.getElementById('cartIGV').textContent = formatMoney(igv);
 
-    const totalInput = document.getElementById('cartTotalInput');
+    var totalInput = document.getElementById('cartTotalInput');
     if (!totalInput.dataset.edited) {
         totalInput.value = subtotal.toFixed(2);
     }
 }
 
 function updateCartTotal() {
-    const input = document.getElementById('cartTotalInput');
+    var input = document.getElementById('cartTotalInput');
     input.dataset.edited = 'true';
-    const newTotal = parsePrecio(input.value);
-    const oldTotal = cart.reduce((sum, item) => sum + (item.precio * item.qty), 0);
+    var newTotal = parsePrecio(input.value);
+    var oldTotal = cart.reduce(function(sum, item) { return sum + (item.precio * item.qty); }, 0);
     if (oldTotal > 0 && newTotal > 0) {
-        const ratio = newTotal / oldTotal;
-        cart.forEach(item => {
+        var ratio = newTotal / oldTotal;
+        cart.forEach(function(item) {
             item.precio = parsePrecio((item.precio * ratio).toFixed(2));
         });
         renderCart();
@@ -1229,38 +1235,32 @@ async function confirmarVenta() {
         return;
     }
 
-    const cliente = document.getElementById('cartCliente').value.trim();
-    const total = parsePrecio(document.getElementById('cartTotalInput').value);
+    var cliente = document.getElementById('cartCliente').value.trim();
+    var total = parsePrecio(document.getElementById('cartTotalInput').value);
 
     // Preparar items para el backend
-    const items = cart.map(item => ({
-        sku: item.sku,
-        cantidad: item.qty,
-        precio: item.precio
-    }));
+    var items = cart.map(function(item) {
+        return { sku: item.sku, cantidad: item.qty, precio: item.precio };
+    });
 
     try {
-        const resp = await fetch('/api/venta', {
+        var resp = await fetch('/api/venta', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items, vendedor: 'web_user', cliente })
+            body: JSON.stringify({ items: items, vendedor: 'web_user', cliente: cliente })
         });
-        const data = await resp.json();
+        var data = await resp.json();
         if (data.error) {
             showToast(data.error, 'error');
             return;
         }
 
-        // Éxito
         showToast('Venta #' + data.boleta_id + ' registrada', 'success');
-        // Actualizar datos
         await fetchData();
-        // Limpiar carrito
         cart = [];
         document.getElementById('cartTotalInput').dataset.edited = '';
         document.getElementById('cartCliente').value = '';
         renderCart();
-        // Mostrar boleta
         verBoleta(data.boleta_id);
         confetti();
     } catch (e) {
@@ -1273,13 +1273,12 @@ async function confirmarVenta() {
 // ================================================================
 async function verBoleta(id) {
     try {
-        const resp = await fetch('/api/boleta/' + id);
-        const data = await resp.json();
+        var resp = await fetch('/api/boleta/' + id);
+        var data = await resp.json();
         if (data.error) {
             showToast(data.error, 'error');
             return;
         }
-        // Llenar boleta
         document.getElementById('boletaLogo').src = storeConfig.logo || '';
         document.getElementById('boletaTienda').textContent = storeConfig.nombre;
         document.getElementById('boletaRUC').textContent = 'RUC: ' + storeConfig.ruc;
@@ -1289,8 +1288,8 @@ async function verBoleta(id) {
         document.getElementById('boletaFecha').textContent = getNow();
         document.getElementById('boletaCliente').innerHTML = '<strong>Cliente:</strong> ' + (data.cliente || 'Consumidor Final');
 
-        let itemsHtml = '';
-        data.items.forEach(item => {
+        var itemsHtml = '';
+        data.items.forEach(function(item) {
             itemsHtml += '<div class="receipt-item"><span class="name">' + item.Producto + '</span><span class="qty">x' + item.Cantidad + '</span><span>' + formatMoney(item.Precio_real) + '</span></div>';
         });
         document.getElementById('boletaItems').innerHTML = itemsHtml;
@@ -1309,12 +1308,12 @@ function imprimirBoleta() {
 }
 
 function compartirWhatsApp() {
-    const tienda = storeConfig.nombre;
-    const num = document.getElementById('boletaNumero').textContent;
-    const total = document.getElementById('boletaTotal').textContent;
-    const fecha = document.getElementById('boletaFecha').textContent;
-    const items = document.getElementById('boletaItems').innerText;
-    const msg = '*Boleta ' + tienda + '*%0AN°: ' + num + '%0AFecha: ' + fecha + '%0A%0A' + items + '%0A%0A*Total: ' + total + '*%0A%0A¡Gracias!';
+    var tienda = storeConfig.nombre;
+    var num = document.getElementById('boletaNumero').textContent;
+    var total = document.getElementById('boletaTotal').textContent;
+    var fecha = document.getElementById('boletaFecha').textContent;
+    var items = document.getElementById('boletaItems').innerText;
+    var msg = '*Boleta ' + tienda + '*%0AN°: ' + num + '%0AFecha: ' + fecha + '%0A%0A' + items + '%0A%0A*Total: ' + total + '*%0A%0A¡Gracias!';
     window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
 }
 
@@ -1322,27 +1321,30 @@ function compartirWhatsApp() {
 //  INVENTARIO
 // ================================================================
 function renderInventario() {
-    const cats = [...new Set(products.map(p => p.Categoria).filter(Boolean))];
-    const catRow = document.getElementById('invCategorias');
-    catRow.innerHTML = '<button class="filter-chip active" onclick="filterInvCat('all')">Todos</button>' +
-        cats.map(c => '<button class="filter-chip" onclick="filterInvCat('' + c + '')">' + c + '</button>').join('');
+    var cats = [];
+    products.forEach(function(p) { if (p.Categoria && cats.indexOf(p.Categoria) === -1) cats.push(p.Categoria); });
+    var catRow = document.getElementById('invCategorias');
+    catRow.innerHTML = '<button class="filter-chip active" onclick="filterInvCat(\'all\')">Todos</button>';
+    cats.forEach(function(c) {
+        catRow.innerHTML += '<button class="filter-chip" onclick="filterInvCat(\'' + c + '\')">' + c + '</button>';
+    });
     filterInventario();
 }
 
 function filterInvCat(cat) {
     currentInvFilter = cat;
-    document.querySelectorAll('#invCategorias .filter-chip').forEach(btn => {
+    document.querySelectorAll('#invCategorias .filter-chip').forEach(function(btn) {
         btn.classList.toggle('active', btn.textContent === (cat === 'all' ? 'Todos' : cat));
     });
     filterInventario();
 }
 
 function filterInventario() {
-    const search = document.getElementById('invSearch').value.toLowerCase();
-    const tbody = document.querySelector('#invTable tbody');
-    let filtered = products.filter(p => {
-        const matchSearch = (p.Nombre_completo || '').toLowerCase().includes(search) || (p.SKU || '').toLowerCase().includes(search);
-        const matchCat = currentInvFilter === 'all' || p.Categoria === currentInvFilter;
+    var search = document.getElementById('invSearch').value.toLowerCase();
+    var tbody = document.querySelector('#invTable tbody');
+    var filtered = products.filter(function(p) {
+        var matchSearch = (p.Nombre_completo || '').toLowerCase().includes(search) || (p.SKU || '').toLowerCase().includes(search);
+        var matchCat = currentInvFilter === 'all' || p.Categoria === currentInvFilter;
         return matchSearch && matchCat;
     });
 
@@ -1352,8 +1354,8 @@ function filterInventario() {
     } else {
         document.getElementById('invTable').style.display = 'table';
         document.getElementById('invEmpty').style.display = 'none';
-        tbody.innerHTML = filtered.map(p => {
-            const stockBadge = p.Stock_actual <= p.Stock_minimo ? '<span class="badge badge-danger">Bajo</span>' : '<span class="badge badge-success">OK</span>';
+        tbody.innerHTML = filtered.map(function(p) {
+            var stockBadge = p.Stock_actual <= p.Stock_minimo ? '<span class="badge badge-danger">Bajo</span>' : '<span class="badge badge-success">OK</span>';
             return '<tr>' +
                 '<td>' + p.SKU + '</td>' +
                 '<td>' + p.Nombre_completo + '</td>' +
@@ -1371,7 +1373,7 @@ function filterInventario() {
 }
 
 function editarProducto(sku) {
-    const p = products.find(prod => prod.SKU === sku);
+    var p = products.find(function(prod) { return prod.SKU === sku; });
     if (!p) return;
     document.getElementById('prodId').value = sku;
     document.getElementById('prodSKU').value = p.SKU;
@@ -1387,18 +1389,18 @@ function editarProducto(sku) {
 }
 
 async function sugerirPrecio() {
-    const costo = parsePrecio(document.getElementById('prodCosto').value);
-    const categoria = document.getElementById('prodCategoria').value;
+    var costo = parsePrecio(document.getElementById('prodCosto').value);
+    var categoria = document.getElementById('prodCategoria').value;
     if (costo > 0 && categoria) {
         try {
-            const resp = await fetch('/api/sugerir-precio', {
+            var resp = await fetch('/api/sugerir-precio', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ costo, categoria })
+                body: JSON.stringify({ costo: costo, categoria: categoria })
             });
-            const data = await resp.json();
+            var data = await resp.json();
             if (data.precio_sugerido) {
-                const hint = document.getElementById('precioSugeridoHint');
+                var hint = document.getElementById('precioSugeridoHint');
                 hint.textContent = 'Precio sugerido: ' + formatMoney(data.precio_sugerido);
                 hint.style.display = 'block';
                 if (!document.getElementById('prodPrecio').value) {
@@ -1406,11 +1408,10 @@ async function sugerirPrecio() {
                 }
             }
         } catch (e) {
-            // Fallback local
-            const margen = { 'Electrónica': 0.3, 'Ropa': 0.5, 'Alimentos': 0.25, 'Hogar': 0.35, 'Deportes': 0.4, 'Otros': 0.3 };
-            const m = margen[categoria] || 0.3;
-            const sugerido = costo * (1 + m);
-            const hint = document.getElementById('precioSugeridoHint');
+            var margen = { 'Electrónica': 0.3, 'Ropa': 0.5, 'Alimentos': 0.25, 'Hogar': 0.35, 'Deportes': 0.4, 'Otros': 0.3 };
+            var m = margen[categoria] || 0.3;
+            var sugerido = costo * (1 + m);
+            var hint = document.getElementById('precioSugeridoHint');
             hint.textContent = 'Precio sugerido (local): ' + formatMoney(sugerido);
             hint.style.display = 'block';
             if (!document.getElementById('prodPrecio').value) {
@@ -1421,15 +1422,15 @@ async function sugerirPrecio() {
 }
 
 async function guardarProducto() {
-    const id = document.getElementById('prodId').value;
-    const sku = document.getElementById('prodSKU').value.trim();
-    const nombre = document.getElementById('prodNombre').value.trim();
-    const categoria = document.getElementById('prodCategoria').value;
-    const costo = parsePrecio(document.getElementById('prodCosto').value);
-    const precio = parsePrecio(document.getElementById('prodPrecio').value);
-    const stock = parseInt(document.getElementById('prodStock').value) || 0;
-    const stockMin = parseInt(document.getElementById('prodStockMin').value) || 0;
-    const proveedor = document.getElementById('prodProveedor').value.trim();
+    var id = document.getElementById('prodId').value;
+    var sku = document.getElementById('prodSKU').value.trim();
+    var nombre = document.getElementById('prodNombre').value.trim();
+    var categoria = document.getElementById('prodCategoria').value;
+    var costo = parsePrecio(document.getElementById('prodCosto').value);
+    var precio = parsePrecio(document.getElementById('prodPrecio').value);
+    var stock = parseInt(document.getElementById('prodStock').value) || 0;
+    var stockMin = parseInt(document.getElementById('prodStockMin').value) || 0;
+    var proveedor = document.getElementById('prodProveedor').value.trim();
 
     if (!nombre || costo <= 0) {
         showToast('Nombre y Costo son obligatorios', 'error');
@@ -1437,23 +1438,21 @@ async function guardarProducto() {
     }
 
     try {
-        let resp;
+        var resp;
         if (id) {
-            // Editar
             resp = await fetch('/api/actualizar-producto', {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sku: id, precio_venta: precio, stock })
+                body: JSON.stringify({ sku: id, precio_venta: precio, stock: stock })
             });
         } else {
-            // Crear
             resp = await fetch('/api/producto', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ sku, nombre, categoria, costo, precio_venta: precio, stock, stock_minimo: stockMin, proveedor })
+                body: JSON.stringify({ sku: sku, nombre: nombre, categoria: categoria, costo: costo, precio_venta: precio, stock: stock, stock_minimo: stockMin, proveedor: proveedor })
             });
         }
-        const data = await resp.json();
+        var data = await resp.json();
         if (data.error) {
             showToast(data.error, 'error');
         } else {
@@ -1471,18 +1470,16 @@ async function guardarProducto() {
 // ================================================================
 async function renderClientes() {
     try {
-        const resp = await fetch('/api/clientes');
+        var resp = await fetch('/api/clientes');
         clients = await resp.json();
     } catch (e) {
-        // Si falla, usar clients vacío
         clients = [];
     }
-    const search = document.getElementById('clientSearch').value.toLowerCase();
-    const tbody = document.querySelector('#clientTable tbody');
-    const filtered = clients.filter(c =>
-        (c.nombre || '').toLowerCase().includes(search) ||
-        (c.telefono || '').includes(search)
-    );
+    var search = document.getElementById('clientSearch').value.toLowerCase();
+    var tbody = document.querySelector('#clientTable tbody');
+    var filtered = clients.filter(function(c) {
+        return (c.nombre || '').toLowerCase().includes(search) || (c.telefono || '').includes(search);
+    });
 
     if (filtered.length === 0) {
         document.getElementById('clientTable').style.display = 'none';
@@ -1490,16 +1487,16 @@ async function renderClientes() {
     } else {
         document.getElementById('clientTable').style.display = 'table';
         document.getElementById('clientEmpty').style.display = 'none';
-        tbody.innerHTML = filtered.map(c =>
-            '<tr>' +
+        tbody.innerHTML = filtered.map(function(c) {
+            return '<tr>' +
                 '<td>' + c.nombre + '</td>' +
                 '<td>' + (c.telefono || '-') + '</td>' +
                 '<td>' + (c.email || '-') + '</td>' +
                 '<td><div class="actions">' +
                     '<button class="action-btn" onclick="verHistorial(\'' + c.id + '\')" title="Historial"><i class="fas fa-clipboard-list"></i></button>' +
                 '</div></td>' +
-            '</tr>'
-        ).join('');
+            '</tr>';
+        }).join('');
     }
 }
 
@@ -1508,20 +1505,20 @@ function filterClientes() {
 }
 
 async function guardarCliente() {
-    const id = document.getElementById('clientId').value;
-    const nombre = document.getElementById('clientNombre').value.trim();
-    const telefono = document.getElementById('clientTelefono').value.trim();
-    const email = document.getElementById('clientEmail').value.trim();
+    var id = document.getElementById('clientId').value;
+    var nombre = document.getElementById('clientNombre').value.trim();
+    var telefono = document.getElementById('clientTelefono').value.trim();
+    var email = document.getElementById('clientEmail').value.trim();
 
     if (!nombre) { showToast('El nombre es obligatorio', 'error'); return; }
 
     try {
-        const resp = await fetch('/api/cliente', {
+        var resp = await fetch('/api/cliente', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id, nombre, telefono, email })
+            body: JSON.stringify({ id: id, nombre: nombre, telefono: telefono, email: email })
         });
-        const data = await resp.json();
+        var data = await resp.json();
         if (data.error) {
             showToast(data.error, 'error');
         } else {
@@ -1535,23 +1532,22 @@ async function guardarCliente() {
 }
 
 function verHistorial(clienteId) {
-    const cliente = clients.find(c => c.id === clienteId);
+    var cliente = clients.find(function(c) { return c.id === clienteId; });
     if (!cliente) return;
     historialClienteId = clienteId;
     document.getElementById('historialClienteInfo').innerHTML = '<h3>' + cliente.nombre + '</h3><p style="color:var(--text-muted);font-size:0.875rem;">' + (cliente.telefono || '') + ' | ' + (cliente.email || '') + '</p>';
 
-    // Filtrar movimientos por cliente
-    const compras = movements.filter(m => m.Tipo === 'venta' && m.Cliente === cliente.nombre);
-    const tbody = document.querySelector('#historialTable tbody');
+    var compras = movements.filter(function(m) { return m.Tipo === 'venta' && m.Cliente === cliente.nombre; });
+    var tbody = document.querySelector('#historialTable tbody');
     if (compras.length === 0) {
         document.getElementById('historialTable').style.display = 'none';
         document.getElementById('historialEmpty').style.display = 'block';
     } else {
         document.getElementById('historialTable').style.display = 'table';
         document.getElementById('historialEmpty').style.display = 'none';
-        tbody.innerHTML = compras.map(c =>
-            '<tr><td>' + (c.Fecha || '') + '</td><td>' + formatMoney(c.Total || 0) + '</td><td>' + (c.Cantidad || 0) + '</td></tr>'
-        ).join('');
+        tbody.innerHTML = compras.map(function(c) {
+            return '<tr><td>' + (c.Fecha || '') + '</td><td>' + formatMoney(c.Total || 0) + '</td><td>' + (c.Cantidad || 0) + '</td></tr>';
+        }).join('');
     }
     openModal('modalHistorial');
 }
@@ -1561,55 +1557,55 @@ function verHistorial(clienteId) {
 // ================================================================
 function setPeriod(period, btn) {
     currentPeriod = period;
-    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.period-btn').forEach(function(b) { b.classList.remove('active'); });
     if (btn) btn.classList.add('active');
     document.getElementById('dateRangeCustom').style.display = period === 'custom' ? 'grid' : 'none';
     refreshCierre();
 }
 
 function refreshCierre() {
-    let filtered = [];
-    const hoy = new Date();
+    var filtered = [];
+    var hoy = new Date();
 
     if (currentPeriod === 'hoy') {
-        filtered = movements.filter(m => (m.Fecha || '').startsWith(getToday()));
+        filtered = movements.filter(function(m) { return (m.Fecha || '').startsWith(getToday()); });
     } else if (currentPeriod === 'semana') {
-        const weekAgo = new Date(hoy); weekAgo.setDate(weekAgo.getDate() - 7);
-        filtered = movements.filter(m => new Date(m.Fecha) >= weekAgo);
+        var weekAgo = new Date(hoy); weekAgo.setDate(weekAgo.getDate() - 7);
+        filtered = movements.filter(function(m) { return new Date(m.Fecha) >= weekAgo; });
     } else if (currentPeriod === 'mes') {
-        const monthAgo = new Date(hoy); monthAgo.setMonth(monthAgo.getMonth() - 1);
-        filtered = movements.filter(m => new Date(m.Fecha) >= monthAgo);
+        var monthAgo = new Date(hoy); monthAgo.setMonth(monthAgo.getMonth() - 1);
+        filtered = movements.filter(function(m) { return new Date(m.Fecha) >= monthAgo; });
     } else if (currentPeriod === 'custom') {
-        const from = document.getElementById('dateFrom').value;
-        const to = document.getElementById('dateTo').value;
+        var from = document.getElementById('dateFrom').value;
+        var to = document.getElementById('dateTo').value;
         if (from && to) {
-            filtered = movements.filter(m => m.Fecha >= from && m.Fecha <= to);
+            filtered = movements.filter(function(m) { return m.Fecha >= from && m.Fecha <= to; });
         }
     }
 
-    const ventas = filtered.filter(m => m.Tipo === 'venta');
-    const compras = filtered.filter(m => m.Tipo === 'compra');
-    const ingresos = ventas.reduce((sum, m) => sum + parsePrecio(m.Total), 0);
-    const gastos = compras.reduce((sum, m) => sum + parsePrecio(m.Total), 0);
-    const ganancia = ingresos - gastos;
-    const margen = ingresos > 0 ? ((ganancia / ingresos) * 100).toFixed(1) : 0;
+    var ventas = filtered.filter(function(m) { return m.Tipo === 'venta'; });
+    var compras = filtered.filter(function(m) { return m.Tipo === 'compra'; });
+    var ingresos = ventas.reduce(function(sum, m) { return sum + parsePrecio(m.Total); }, 0);
+    var gastos = compras.reduce(function(sum, m) { return sum + parsePrecio(m.Total); }, 0);
+    var ganancia = ingresos - gastos;
+    var margen = ingresos > 0 ? ((ganancia / ingresos) * 100).toFixed(1) : 0;
 
     document.getElementById('cierreIngresos').textContent = formatMoney(ingresos);
     document.getElementById('cierreGastos').textContent = formatMoney(gastos);
     document.getElementById('cierreGanancia').textContent = formatMoney(ganancia);
     document.getElementById('cierreMargen').textContent = margen + '%';
 
-    const tbody = document.querySelector('#cierreTable tbody');
+    var tbody = document.querySelector('#cierreTable tbody');
     if (filtered.length === 0) {
         document.getElementById('cierreTable').style.display = 'none';
         document.getElementById('cierreEmpty').style.display = 'block';
     } else {
         document.getElementById('cierreTable').style.display = 'table';
         document.getElementById('cierreEmpty').style.display = 'none';
-        tbody.innerHTML = filtered.map(m => {
-            const tipoBadge = m.Tipo === 'venta' ? '<span class="badge badge-success">Venta</span>' : '<span class="badge badge-warning">Compra</span>';
-            const boletaId = m.Referencia || '';
-            const anularBtn = m.Tipo === 'venta' && boletaId ? '<button class="action-btn danger" onclick="prepararAnular(\'' + boletaId + '\')" title="Anular"><i class="fas fa-ban"></i></button>' : '';
+        tbody.innerHTML = filtered.map(function(m) {
+            var tipoBadge = m.Tipo === 'venta' ? '<span class="badge badge-success">Venta</span>' : '<span class="badge badge-warning">Compra</span>';
+            var boletaId = m.Referencia || '';
+            var anularBtn = m.Tipo === 'venta' && boletaId ? '<button class="action-btn danger" onclick="prepararAnular(\'' + boletaId + '\')" title="Anular"><i class="fas fa-ban"></i></button>' : '';
             return '<tr>' +
                 '<td>' + (m.Fecha || '') + '</td>' +
                 '<td>' + (m.SKU || '') + '</td>' +
@@ -1631,16 +1627,16 @@ function prepararAnular(boletaId) {
 
 async function confirmarAnulacion() {
     if (!anularVentaId) return;
-    const motivo = document.getElementById('anularMotivo').value.trim();
+    var motivo = document.getElementById('anularMotivo').value.trim();
     if (!motivo) { showToast('Ingresa un motivo', 'error'); return; }
 
     try {
-        const resp = await fetch('/api/anular-venta', {
+        var resp = await fetch('/api/anular-venta', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ boleta_id: parseInt(anularVentaId), razon: motivo })
         });
-        const data = await resp.json();
+        var data = await resp.json();
         if (data.error) {
             showToast(data.error, 'error');
         } else {
@@ -1658,12 +1654,12 @@ async function confirmarAnulacion() {
 //  RENTABILIDAD
 // ================================================================
 function refreshRentabilidad() {
-    const ventas = movements.filter(m => m.Tipo === 'venta');
-    const compras = movements.filter(m => m.Tipo === 'compra');
-    const ingresos = ventas.reduce((sum, m) => sum + parsePrecio(m.Total), 0);
-    const gastos = compras.reduce((sum, m) => sum + parsePrecio(m.Total), 0);
-    const ganancia = ingresos - gastos;
-    const margen = ingresos > 0 ? ((ganancia / ingresos) * 100).toFixed(1) : 0;
+    var ventas = movements.filter(function(m) { return m.Tipo === 'venta'; });
+    var compras = movements.filter(function(m) { return m.Tipo === 'compra'; });
+    var ingresos = ventas.reduce(function(sum, m) { return sum + parsePrecio(m.Total); }, 0);
+    var gastos = compras.reduce(function(sum, m) { return sum + parsePrecio(m.Total); }, 0);
+    var ganancia = ingresos - gastos;
+    var margen = ingresos > 0 ? ((ganancia / ingresos) * 100).toFixed(1) : 0;
 
     document.getElementById('rentIngresos').textContent = formatMoney(ingresos);
     document.getElementById('rentGastos').textContent = formatMoney(gastos);
@@ -1671,41 +1667,41 @@ function refreshRentabilidad() {
     document.getElementById('rentMargen').textContent = margen + '%';
 
     // Top 5
-    const ventasPorProducto = {};
-    ventas.forEach(v => {
-        const key = v.SKU || v.Producto;
+    var ventasPorProducto = {};
+    ventas.forEach(function(v) {
+        var key = v.SKU || v.Producto;
         if (!key) return;
         if (!ventasPorProducto[key]) ventasPorProducto[key] = { nombre: v.Producto || key, cantidad: 0 };
         ventasPorProducto[key].cantidad += parsePrecio(v.Cantidad || 0);
     });
-    const top5 = Object.values(ventasPorProducto).sort((a, b) => b.cantidad - a.cantidad).slice(0, 5);
-    const maxQty = top5.length > 0 ? top5[0].cantidad : 1;
+    var top5 = Object.values(ventasPorProducto).sort(function(a, b) { return b.cantidad - a.cantidad; }).slice(0, 5);
+    var maxQty = top5.length > 0 ? top5[0].cantidad : 1;
 
-    document.getElementById('topProductos').innerHTML = top5.map(p =>
-        '<div class="top-product">' +
+    document.getElementById('topProductos').innerHTML = top5.map(function(p) {
+        return '<div class="top-product">' +
             '<div class="top-product-header">' +
                 '<span class="top-product-name">' + p.nombre + '</span>' +
                 '<span class="top-product-qty">' + p.cantidad + ' vendidos</span>' +
             '</div>' +
             '<div class="progress-bar"><div class="progress-bar-fill" style="width:' + ((p.cantidad / maxQty) * 100) + '%"></div></div>' +
-        '</div>'
-    ).join('') || '<div class="empty-state" style="padding:20px;"><p>No hay ventas registradas</p></div>';
+        '</div>';
+    }).join('') || '<div class="empty-state" style="padding:20px;"><p>No hay ventas registradas</p></div>';
 
     // Dormidos
-    const dormidos = products.filter(p => {
-        const vendido = ventas.some(v => v.SKU === p.SKU);
+    var dormidos = products.filter(function(p) {
+        var vendido = ventas.some(function(v) { return v.SKU === p.SKU; });
         return !vendido && p.Stock_actual > 0;
     });
-    const tbody = document.querySelector('#dormidosTable tbody');
+    var tbody = document.querySelector('#dormidosTable tbody');
     if (dormidos.length === 0) {
         document.getElementById('dormidosTable').style.display = 'none';
         document.getElementById('dormidosEmpty').style.display = 'block';
     } else {
         document.getElementById('dormidosTable').style.display = 'table';
         document.getElementById('dormidosEmpty').style.display = 'none';
-        tbody.innerHTML = dormidos.map(p =>
-            '<tr><td>' + p.Nombre_completo + '</td><td>' + p.Stock_actual + '</td><td>Nunca</td></tr>'
-        ).join('');
+        tbody.innerHTML = dormidos.map(function(p) {
+            return '<tr><td>' + p.Nombre_completo + '</td><td>' + p.Stock_actual + '</td><td>Nunca</td></tr>';
+        }).join('');
     }
 }
 
@@ -1719,8 +1715,8 @@ function initChat() {
 }
 
 function addChatMessage(sender, text) {
-    const container = document.getElementById('chatMessages');
-    const bubble = document.createElement('div');
+    var container = document.getElementById('chatMessages');
+    var bubble = document.createElement('div');
     bubble.className = 'chat-bubble ' + sender;
     bubble.innerHTML = text + '<span class="time">' + new Date().toLocaleTimeString('es-PE', {hour: '2-digit', minute:'2-digit'}) + '</span>';
     container.appendChild(bubble);
@@ -1728,62 +1724,62 @@ function addChatMessage(sender, text) {
 }
 
 function sendChatMessage() {
-    const input = document.getElementById('chatInput');
-    const text = input.value.trim();
+    var input = document.getElementById('chatInput');
+    var text = input.value.trim();
     if (!text) return;
     addChatMessage('user', text);
     input.value = '';
-    setTimeout(() => {
-        const respuesta = generarRespuestaIA(text);
+    setTimeout(function() {
+        var respuesta = generarRespuestaIA(text);
         addChatMessage('ai', respuesta);
     }, 800);
 }
 
 function sendQuickQuestion(tipo) {
-    const preguntas = {
+    var preguntas = {
         'negocio': '¿Cómo va mi negocio?',
         'stock': '¿Qué productos están bajos?',
         'comprar': '¿Qué debo comprar?',
         'recomendaciones': 'Recomendaciones para hoy',
         'meta': '¿Cuánto debo vender?'
     };
-    const text = preguntas[tipo];
+    var text = preguntas[tipo];
     addChatMessage('user', text);
-    setTimeout(() => {
+    setTimeout(function() {
         addChatMessage('ai', generarRespuestaIA(text));
     }, 800);
 }
 
 function generarRespuestaIA(pregunta) {
-    const p = pregunta.toLowerCase();
+    var p = pregunta.toLowerCase();
 
     if (p.includes('negocio') || p.includes('va mi')) {
-        const ventas = movements.filter(m => m.Tipo === 'venta');
-        const compras = movements.filter(m => m.Tipo === 'compra');
-        const ingresos = ventas.reduce((s, m) => s + parsePrecio(m.Total), 0);
-        const gastos = compras.reduce((s, m) => s + parsePrecio(m.Total), 0);
-        const ganancia = ingresos - gastos;
-        const margen = ingresos > 0 ? ((ganancia / ingresos) * 100).toFixed(1) : 0;
-        const valorInv = products.reduce((s, p) => s + (p.Costo * p.Stock_actual), 0);
+        var ventas = movements.filter(function(m) { return m.Tipo === 'venta'; });
+        var compras = movements.filter(function(m) { return m.Tipo === 'compra'; });
+        var ingresos = ventas.reduce(function(s, m) { return s + parsePrecio(m.Total); }, 0);
+        var gastos = compras.reduce(function(s, m) { return s + parsePrecio(m.Total); }, 0);
+        var ganancia = ingresos - gastos;
+        var margen = ingresos > 0 ? ((ganancia / ingresos) * 100).toFixed(1) : 0;
+        var valorInv = products.reduce(function(s, p) { return s + (p.Costo * p.Stock_actual); }, 0);
         return '<strong>Resumen de tu negocio:</strong><br>• Ingresos: ' + formatMoney(ingresos) + '<br>• Gastos: ' + formatMoney(gastos) + '<br>• Ganancia: ' + formatMoney(ganancia) + '<br>• Margen: ' + margen + '%<br>• Valor del inventario: ' + formatMoney(valorInv);
     }
 
     if (p.includes('bajos') || p.includes('stock')) {
-        const bajos = products.filter(p => p.Stock_actual <= p.Stock_minimo && p.Stock_actual > 0);
+        var bajos = products.filter(function(p) { return p.Stock_actual <= p.Stock_minimo && p.Stock_actual > 0; });
         if (bajos.length === 0) return '¡Excelente! No hay productos con stock bajo.';
-        return '<strong>Productos con stock bajo:</strong><br>' + bajos.map(p => '• ' + p.Nombre_completo + ' (' + p.Stock_actual + '/' + p.Stock_minimo + ')').join('<br>');
+        return '<strong>Productos con stock bajo:</strong><br>' + bajos.map(function(p) { return '• ' + p.Nombre_completo + ' (' + p.Stock_actual + '/' + p.Stock_minimo + ')'; }).join('<br>');
     }
 
     if (p.includes('comprar') || p.includes('debo comprar')) {
-        const bajos = products.filter(p => p.Stock_actual <= p.Stock_minimo);
+        var bajos = products.filter(function(p) { return p.Stock_actual <= p.Stock_minimo; });
         if (bajos.length === 0) return 'No necesitas comprar nada ahora. El stock está bien.';
-        return '<strong>Sugerencias de compra:</strong><br>' + bajos.map(p => '• ' + p.Nombre_completo + ' - comprar ' + (p.Stock_minimo * 2 - p.Stock_actual) + ' unidades').join('<br>');
+        return '<strong>Sugerencias de compra:</strong><br>' + bajos.map(function(p) { return '• ' + p.Nombre_completo + ' - comprar ' + (p.Stock_minimo * 2 - p.Stock_actual) + ' unidades'; }).join('<br>');
     }
 
     if (p.includes('recomendaciones') || p.includes('recomendacion')) {
-        const bajos = products.filter(p => p.Stock_actual <= p.Stock_minimo);
-        const dormidos = products.filter(p => p.Stock_actual > 0 && p.Stock_actual > 0 && !movements.some(m => m.SKU === p.SKU && m.Tipo === 'venta'));
-        let msg = '<strong>Recomendaciones para hoy:</strong><br>';
+        var bajos = products.filter(function(p) { return p.Stock_actual <= p.Stock_minimo; });
+        var dormidos = products.filter(function(p) { return p.Stock_actual > 0 && p.Stock_actual > 0 && !movements.some(function(m) { return m.SKU === p.SKU && m.Tipo === 'venta'; }); });
+        var msg = '<strong>Recomendaciones para hoy:</strong><br>';
         if (bajos.length > 0) msg += '• Reponer ' + bajos.length + ' productos con stock bajo<br>';
         if (dormidos.length > 0) msg += '• Revisar ' + dormidos.length + ' productos dormidos<br>';
         msg += '• Promocionar productos con mayor margen';
@@ -1791,11 +1787,11 @@ function generarRespuestaIA(pregunta) {
     }
 
     if (p.includes('meta') || p.includes('vender')) {
-        const hoy = getToday();
-        const ventasHoy = movements.filter(m => m.Tipo === 'venta' && (m.Fecha || '').startsWith(hoy));
-        const totalHoy = ventasHoy.reduce((s, m) => s + parsePrecio(m.Total), 0);
-        const meta = parsePrecio(storeConfig.meta) || 500;
-        const falta = Math.max(0, meta - totalHoy);
+        var hoy = getToday();
+        var ventasHoy = movements.filter(function(m) { return m.Tipo === 'venta' && (m.Fecha || '').startsWith(hoy); });
+        var totalHoy = ventasHoy.reduce(function(s, m) { return s + parsePrecio(m.Total); }, 0);
+        var meta = parsePrecio(storeConfig.meta) || 500;
+        var falta = Math.max(0, meta - totalHoy);
         return '<strong>Meta diaria:</strong> ' + formatMoney(meta) + '<br>Vendido hoy: ' + formatMoney(totalHoy) + '<br>Falta: ' + formatMoney(falta);
     }
 
@@ -1820,7 +1816,7 @@ function guardarTienda() {
 
 function setTheme(theme, el) {
     document.body.setAttribute('data-theme', theme);
-    document.querySelectorAll('.theme-option').forEach(opt => opt.classList.remove('active'));
+    document.querySelectorAll('.theme-option').forEach(function(opt) { opt.classList.remove('active'); });
     if (el) el.classList.add('active');
     localStorage.setItem('lumin-theme', theme);
 }
@@ -1829,15 +1825,13 @@ function setTheme(theme, el) {
 //  INICIO (cargar tema guardado)
 // ================================================================
 document.addEventListener('DOMContentLoaded', function() {
-    const savedTheme = localStorage.getItem('lumin-theme') || 'dark';
+    var savedTheme = localStorage.getItem('lumin-theme') || 'dark';
     document.body.setAttribute('data-theme', savedTheme);
-    document.querySelectorAll('.theme-option').forEach(opt => {
+    document.querySelectorAll('.theme-option').forEach(function(opt) {
         if (opt.querySelector('.theme-preview.' + savedTheme)) {
             opt.classList.add('active');
         }
     });
-    // Forzar login si hay sesión persistente (opcional)
-    // No se implementa para mantener seguridad, pero se puede añadir localStorage.
     // Mostrar login por defecto
     document.getElementById('loginScreen').style.display = 'flex';
     document.getElementById('mainApp').style.display = 'none';
