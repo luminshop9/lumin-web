@@ -27,7 +27,7 @@ SCOPES = [
 ]
 
 # ============================================================
-# AUTENTICACIÓN ROBUSTA
+# AUTENTICACIÓN
 # ============================================================
 gc = None
 spreadsheet = None
@@ -121,6 +121,54 @@ def getToday():
     return date.today().isoformat()
 
 # ============================================================
+# CONFIGURACIÓN DE LA TIENDA (leer/escribir en hoja configuracion)
+# ============================================================
+def leer_configuracion():
+    """Lee la hoja 'configuracion' y devuelve un dict con clave:valor"""
+    try:
+        hoja = get_worksheet('configuracion')
+        if hoja is None:
+            return {}
+        registros = hoja.get_all_records()
+        config = {}
+        for r in registros:
+            clave = r.get('clave', '').strip()
+            valor = r.get('valor', '').strip()
+            if clave:
+                config[clave] = valor
+        return config
+    except Exception as e:
+        print("Error leyendo configuracion:", e)
+        return {}
+
+def guardar_configuracion(config_dict):
+    """Guarda o actualiza la hoja 'configuracion' con los valores del dict"""
+    try:
+        hoja = get_worksheet('configuracion')
+        if hoja is None:
+            return False
+        # Obtener filas existentes
+        filas = hoja.get_all_values()
+        # Si no hay filas, crear encabezados
+        if not filas:
+            hoja.append_row(["clave", "valor"])
+            filas = [["clave", "valor"]]
+        # Actualizar cada clave
+        for clave, valor in config_dict.items():
+            encontrado = False
+            for i, fila in enumerate(filas):
+                if fila and len(fila) > 0 and fila[0] == clave:
+                    hoja.update_cell(i+1, 2, valor)
+                    encontrado = True
+                    break
+            if not encontrado:
+                hoja.append_row([clave, valor])
+        return True
+    except Exception as e:
+        print("Error guardando configuracion:", e)
+        return False
+
+# ============================================================
 # ENDPOINTS
 # ============================================================
 @app.route('/')
@@ -130,6 +178,21 @@ def serve_index():
 @app.route('/favicon.ico')
 def favicon():
     return '', 204
+
+@app.route('/api/configuracion', methods=['GET'])
+def api_get_configuracion():
+    config = leer_configuracion()
+    return jsonify(config)
+
+@app.route('/api/configuracion', methods=['POST'])
+def api_set_configuracion():
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "Datos inválidos"}), 400
+    if guardar_configuracion(data):
+        return jsonify({"mensaje": "Configuración guardada"})
+    else:
+        return jsonify({"error": "Error al guardar configuración"}), 500
 
 @app.route('/api/inventario')
 def api_inventario():
@@ -321,31 +384,6 @@ def api_boleta(boleta_id):
         'vendedor': items[0].get('Vendedor', '') if items else '',
         'cliente': items[0].get('Cliente', '') if items else ''
     })
-
-@app.route('/api/boletas')
-def api_listar_boletas():
-    if not autenticado or spreadsheet is None:
-        return jsonify([])
-    hoja = get_worksheet('boletas')
-    if hoja is None:
-        return jsonify([])
-    registros = hoja.get_all_records()
-    # Agrupar por ID_Boleta para mostrar resumen
-    boletas = {}
-    for r in registros:
-        bid = parse_int(r.get('ID_Boleta', 0))
-        if bid:
-            if bid not in boletas:
-                boletas[bid] = {
-                    'id': bid,
-                    'fecha': r.get('Fecha'),
-                    'cliente': r.get('Cliente', ''),
-                    'total': 0,
-                    'items': 0
-                }
-            boletas[bid]['total'] += parse_decimal(r.get('Total_fila', 0))
-            boletas[bid]['items'] += 1
-    return jsonify(list(boletas.values()))
 
 @app.route('/api/clientes')
 def api_clientes():
