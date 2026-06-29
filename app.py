@@ -330,7 +330,6 @@ def api_listar_boletas():
     if hoja is None:
         return jsonify([])
     registros = hoja.get_all_records()
-    # Agrupar por ID_Boleta para mostrar resumen
     boletas = {}
     for r in registros:
         bid = parse_int(r.get('ID_Boleta', 0))
@@ -537,7 +536,11 @@ def api_registrar_venta():
         'boleta_id': id_boleta,
         'subtotal': subtotal
     })
-    @app.route('/api/configuracion', methods=['GET'])
+
+# ============================================================
+# ENDPOINTS DE CONFIGURACIÓN (persistente en Google Sheets)
+# ============================================================
+@app.route('/api/configuracion', methods=['GET'])
 def api_get_configuracion():
     if not autenticado or spreadsheet is None:
         return jsonify({})
@@ -568,8 +571,7 @@ def api_set_configuracion():
         hoja = get_worksheet('configuracion')
         if hoja is None:
             return jsonify({"error": "Hoja configuracion no encontrada"}), 404
-        # Limpiar la hoja (opcional) o actualizar fila por fila
-        # Usamos un enfoque simple: reemplazar todas las filas
+        # Limpiar y guardar
         filas = [[clave, valor] for clave, valor in data.items()]
         hoja.clear()
         if filas:
@@ -579,6 +581,9 @@ def api_set_configuracion():
         print("Error en /api/configuracion POST:", e)
         return jsonify({"error": str(e)}), 500
 
+# ============================================================
+# INICIO
+# ============================================================
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
