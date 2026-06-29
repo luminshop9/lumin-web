@@ -27,7 +27,7 @@ SCOPES = [
 ]
 
 # ============================================================
-# AUTENTICACIÓN (robusta)
+# AUTENTICACIÓN ROBUSTA
 # ============================================================
 gc = None
 spreadsheet = None
@@ -321,6 +321,31 @@ def api_boleta(boleta_id):
         'vendedor': items[0].get('Vendedor', '') if items else '',
         'cliente': items[0].get('Cliente', '') if items else ''
     })
+
+@app.route('/api/boletas')
+def api_listar_boletas():
+    if not autenticado or spreadsheet is None:
+        return jsonify([])
+    hoja = get_worksheet('boletas')
+    if hoja is None:
+        return jsonify([])
+    registros = hoja.get_all_records()
+    # Agrupar por ID_Boleta para mostrar resumen
+    boletas = {}
+    for r in registros:
+        bid = parse_int(r.get('ID_Boleta', 0))
+        if bid:
+            if bid not in boletas:
+                boletas[bid] = {
+                    'id': bid,
+                    'fecha': r.get('Fecha'),
+                    'cliente': r.get('Cliente', ''),
+                    'total': 0,
+                    'items': 0
+                }
+            boletas[bid]['total'] += parse_decimal(r.get('Total_fila', 0))
+            boletas[bid]['items'] += 1
+    return jsonify(list(boletas.values()))
 
 @app.route('/api/clientes')
 def api_clientes():
