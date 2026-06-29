@@ -126,9 +126,14 @@
         .period-selector { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
         .period-btn { padding:4px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:100px; color:var(--text-secondary); font-size:0.7rem; cursor:pointer; transition:var(--transition); }
         .period-btn.active, .period-btn:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
+        /* ==== NUEVO: Carrito sticky ==== */
         .cart-sticky { position:sticky; bottom:0; background:var(--bg-card); padding:12px 0; z-index:10; border-top:1px solid var(--border); margin-top:12px; }
+        /* ==== Input de archivo para logo ==== */
+        .file-input-wrapper { display:flex; align-items:center; gap:10px; }
+        .file-input-wrapper input[type="file"] { flex:1; padding:6px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-xs); color:var(--text-primary); font-size:0.8rem; }
+        .file-input-wrapper button { padding:6px 12px; }
+        .logo-preview { max-width:80px; max-height:80px; border-radius:8px; border:1px solid var(--border); margin-top:8px; }
         @media(max-width:768px){ .sidebar{width:60px;} .sidebar-item span{display:none;} .sidebar-item{justify-content:center; padding:12px;} .sidebar-logo{font-size:1rem; padding:10px;} }
-        .logo-preview { max-width:80px; max-height:80px; border-radius:8px; border:1px solid var(--border); margin-top:8px; display:block; }
     </style>
 </head>
 <body data-theme="dark">
@@ -153,6 +158,7 @@
 
 <!-- ========== APP ========== -->
 <div id="mainApp" style="display:none;">
+    <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-logo">LUMIN</div>
         <nav class="sidebar-nav">
@@ -170,6 +176,7 @@
         </div>
     </aside>
 
+    <!-- Main -->
     <main class="main">
         <div class="container">
 
@@ -240,7 +247,7 @@
                         <div class="cart-totals" id="cartTotals" style="display:none;">
                             <div class="cart-total-row"><span>Subtotal</span><span id="cartSubtotal">S/ 0.00</span></div>
                             <div class="cart-total-row" style="font-size:0.7rem;color:var(--text-muted);">IGV (18%) incluido</div>
-                            <div class="cart-total-row total"><span>Total</span><input type="text" id="cartTotalInput" value="0.00" style="width:100px;padding:4px 8px;background:var(--bg-input);border:1px solid var(--primary);border-radius:var(--radius-xs);color:var(--primary);font-weight:700;text-align:right;outline:none;"></div>
+                            <div class="cart-total-row total"><span>Total</span><input type="text" id="cartTotalInput" value="0.00" style="width:100px;padding:4px 8px;background:var(--bg-input);border:1px solid var(--primary);border-radius:var(--radius-xs);color:var(--primary);font-weight:700;text-align:right;outline:none;" onblur="this.value = parsePrecio(this.value).toFixed(2)"></div>
                             <div style="display:flex;gap:8px;margin-top:12px;">
                                 <button class="btn btn-secondary btn-sm" onclick="clearCart()"><i class="fas fa-trash"></i> Limpiar</button>
                                 <button class="btn btn-success btn-sm" onclick="confirmarVenta()"><i class="fas fa-check"></i> Confirmar</button>
@@ -361,15 +368,14 @@
                     <div class="form-group"><label class="form-label">RUC</label><input type="text" class="form-input" id="tiendaRUC" value="20123456789"></div>
                     <div class="form-group"><label class="form-label">Dirección</label><input type="text" class="form-input" id="tiendaDireccion" value="Av. Principal 123"></div>
                     <div class="form-group"><label class="form-label">Teléfono</label><input type="text" class="form-input" id="tiendaTelefono" value="987654321"></div>
-                    
-                    <!-- ======== NUEVO: Subir logo desde archivo ======== -->
-                    <div class="form-group">
-                        <label class="form-label">Logo de la Tienda</label>
-                        <input type="file" class="form-input" id="logoFileInput" accept="image/*" onchange="uploadLogo(event)">
-                        <img id="logoPreview" class="logo-preview" style="display:none;" alt="Logo preview">
-                        <input type="hidden" id="tiendaLogo" value="">
+                    <div class="form-group"><label class="form-label">Logo URL / Subir logo</label>
+                        <div class="file-input-wrapper">
+                            <input type="file" id="logoFileInput" accept="image/*" onchange="subirLogo()">
+                            <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logoFileInput').click()"><i class="fas fa-upload"></i> Subir</button>
+                        </div>
+                        <div id="logoPreviewContainer" style="margin-top:8px;"></div>
+                        <input type="text" class="form-input" id="tiendaLogo" placeholder="O pega una URL directa" value="" style="margin-top:8px;">
                     </div>
-
                     <div class="form-group"><label class="form-label">Próxima Boleta</label><input type="number" class="form-input" id="tiendaBoleta" value="1"></div>
                     <div class="form-group"><label class="form-label">Meta Diaria (S/)</label><input type="number" class="form-input" id="tiendaMeta" value="500"></div>
                     <button class="btn btn-primary btn-block" onclick="guardarTienda()"><i class="fas fa-save"></i> Guardar</button>
@@ -415,8 +421,12 @@
                 </select>
             </div>
             <div class="form-row">
-                <div class="form-group"><label class="form-label">Costo (S/) *</label><input type="text" class="form-input" id="prodCosto" placeholder="0.00" oninput="sugerirPrecio()"></div>
-                <div class="form-group"><label class="form-label">Precio Venta (S/)</label><input type="text" class="form-input" id="prodPrecio" placeholder="0.00"></div>
+                <div class="form-group"><label class="form-label">Costo (S/) *</label>
+                    <input type="text" class="form-input" id="prodCosto" placeholder="0.00" oninput="sugerirPrecio()" onblur="this.value = parsePrecio(this.value).toFixed(2)">
+                </div>
+                <div class="form-group"><label class="form-label">Precio Venta (S/)</label>
+                    <input type="text" class="form-input" id="prodPrecio" placeholder="0.00" onblur="this.value = parsePrecio(this.value).toFixed(2)">
+                </div>
             </div>
             <div class="form-row">
                 <div class="form-group"><label class="form-label">Stock</label><input type="number" class="form-input" id="prodStock" value="0"></div>
@@ -553,22 +563,24 @@ let storeConfig = {
 let boletaNum = 1;
 
 // ================================================================
-// UTILIDADES
+// UTILIDADES (con parseo mejorado)
 // ================================================================
 function parsePrecio(val) {
     if (!val) return 0;
     let str = String(val).trim().replace(/\s/g, '');
-    // Si el string contiene coma y punto, o solo coma, normalizar a punto decimal
-    if (str.includes(',') && str.includes('.')) {
-        // Si la coma está después del punto, es separador de miles (ej: 1,234.56) -> quitar comas
-        // Si el punto está después de la coma, es decimal (ej: 1.234,56) -> reemplazar coma por punto y quitar punto de miles
-        if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
-            str = str.replace(/\./g, '').replace(',', '.');
-        } else {
+    // Reemplazar coma por punto SOLO si es la última coma o si no hay punto
+    if (str.includes(',')) {
+        // Si hay más de una coma, eliminar todas y dejar una
+        if (str.split(',').length > 2) {
             str = str.replace(/,/g, '');
+        } else {
+            str = str.replace(/,/g, '.');
         }
-    } else if (str.includes(',')) {
-        str = str.replace(/,/g, '.');
+    }
+    // Asegurar que solo haya un punto decimal
+    let parts = str.split('.');
+    if (parts.length > 2) {
+        str = parts[0] + '.' + parts.slice(1).join('');
     }
     return parseFloat(str) || 0;
 }
@@ -647,7 +659,7 @@ async function fetchData() {
         movements = await movRes.json();
         clients = await clientRes.json();
         boletas = await boletasRes.json();
-        await loadStoreConfig();
+        await loadStoreConfig(); // cargar configuración del servidor
         refreshAll();
     } catch(e) {
         showToast('Error al cargar datos. Verifica el servidor.', 'error');
@@ -659,7 +671,7 @@ async function fetchData() {
         movements = [];
         clients = [];
         boletas = [];
-        loadStoreConfig();
+        loadStoreConfig(); // intentar cargar configuración aunque falle el resto
         refreshAll();
     }
 }
@@ -854,7 +866,7 @@ function clearCart() { cart = []; document.getElementById('cartTotalInput').data
 async function confirmarVenta() {
     if (cart.length === 0) { showToast('Carrito vacío', 'error'); return; }
     const cliente = document.getElementById('cartCliente').value.trim();
-    const items = cart.map(item => ({ sku: item.sku, cantidad: item.qty, precio: item.precio }));
+    const items = cart.map(item => ({ sku: item.sku, cantidad: item.qty, precio: parsePrecio(item.precio) }));
     try {
         const resp = await fetch('/api/venta', {
             method: 'POST',
@@ -870,6 +882,9 @@ async function confirmarVenta() {
         document.getElementById('cartCliente').value = '';
         renderCart();
         verBoleta(data.boleta_id);
+        // Forzar actualización de cierre y boletas
+        refreshCierre();
+        renderBoletas();
     } catch(e) { showToast('Error al registrar venta', 'error'); }
 }
 
@@ -1198,6 +1213,25 @@ function refreshRentabilidad() {
 }
 
 // ================================================================
+// SUBIR LOGO DESDE DISPOSITIVO
+// ================================================================
+function subirLogo() {
+    const input = document.getElementById('logoFileInput');
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        document.getElementById('tiendaLogo').value = dataUrl;
+        // Mostrar preview
+        const previewContainer = document.getElementById('logoPreviewContainer');
+        previewContainer.innerHTML = '<img src="'+dataUrl+'" class="logo-preview" alt="Logo">';
+        showToast('Logo cargado. Guarda la configuración.', 'success');
+    };
+    reader.readAsDataURL(file);
+}
+
+// ================================================================
 // CONFIGURACIÓN PERSISTENTE
 // ================================================================
 async function loadStoreConfig() {
@@ -1215,6 +1249,7 @@ async function loadStoreConfig() {
                     meta: parsePrecio(config.meta_diaria) || 500
                 };
                 boletaNum = parseInt(config.boleta_num) || 1;
+                // Actualizar campos del formulario
                 document.getElementById('tiendaNombre').value = storeConfig.nombre;
                 document.getElementById('tiendaRUC').value = storeConfig.ruc;
                 document.getElementById('tiendaDireccion').value = storeConfig.direccion;
@@ -1223,12 +1258,8 @@ async function loadStoreConfig() {
                 document.getElementById('tiendaBoleta').value = boletaNum;
                 document.getElementById('tiendaMeta').value = storeConfig.meta;
                 // Mostrar preview del logo
-                const preview = document.getElementById('logoPreview');
                 if (storeConfig.logo) {
-                    preview.src = storeConfig.logo;
-                    preview.style.display = 'block';
-                } else {
-                    preview.style.display = 'none';
+                    document.getElementById('logoPreviewContainer').innerHTML = '<img src="'+storeConfig.logo+'" class="logo-preview" alt="Logo">';
                 }
                 return;
             }
@@ -1249,34 +1280,9 @@ async function loadStoreConfig() {
     document.getElementById('tiendaLogo').value = storeConfig.logo || '';
     document.getElementById('tiendaBoleta').value = boletaNum;
     document.getElementById('tiendaMeta').value = storeConfig.meta || 500;
-    const preview = document.getElementById('logoPreview');
     if (storeConfig.logo) {
-        preview.src = storeConfig.logo;
-        preview.style.display = 'block';
-    } else {
-        preview.style.display = 'none';
+        document.getElementById('logoPreviewContainer').innerHTML = '<img src="'+storeConfig.logo+'" class="logo-preview" alt="Logo">';
     }
-}
-
-// ======== SUBIR LOGO DESDE ARCHIVO ========
-function uploadLogo(event) {
-    const file = event.target.files[0];
-    if (!file) return;
-    // Limitar tamaño (100KB)
-    if (file.size > 100 * 1024) {
-        showToast('La imagen es muy grande. Máximo 100KB.', 'error');
-        event.target.value = '';
-        return;
-    }
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const base64 = e.target.result;
-        document.getElementById('tiendaLogo').value = base64;
-        document.getElementById('logoPreview').src = base64;
-        document.getElementById('logoPreview').style.display = 'block';
-        showToast('Logo cargado. Guarda la configuración para guardarlo.', 'success');
-    };
-    reader.readAsDataURL(file);
 }
 
 async function guardarTienda() {
@@ -1308,6 +1314,9 @@ async function guardarTienda() {
             boletaNum = config.boleta_num;
             localStorage.setItem('lumin_storeConfig', JSON.stringify(storeConfig));
             localStorage.setItem('lumin_boletaNum', String(boletaNum));
+            if (config.logo) {
+                document.getElementById('logoPreviewContainer').innerHTML = '<img src="'+config.logo+'" class="logo-preview" alt="Logo">';
+            }
         } else {
             showToast('Error al guardar en el servidor', 'error');
         }
