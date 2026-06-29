@@ -14,7 +14,9 @@ load_dotenv()
 app = Flask(__name__, static_folder='static', static_url_path='')
 CORS(app)
 
-# ==================== CONFIGURACIÓN ====================
+# ============================================================
+# CONFIGURACIÓN
+# ============================================================
 GOOGLE_SHEET_ID = os.getenv("GOOGLE_SHEET_ID")
 CREDS_FILE = os.getenv("CREDS_FILE", "creds_nuevo.json")
 GOOGLE_CREDS = os.getenv("GOOGLE_CREDS")
@@ -24,7 +26,9 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-# ==================== AUTENTICACIÓN ROBUSTA ====================
+# ============================================================
+# AUTENTICACIÓN (robusta)
+# ============================================================
 gc = None
 spreadsheet = None
 autenticado = False
@@ -45,7 +49,9 @@ except Exception as e:
     print(f"❌ Error de autenticación: {e}")
     autenticado = False
 
-# ==================== FUNCIONES DE UTILIDAD ====================
+# ============================================================
+# FUNCIONES DE UTILIDAD
+# ============================================================
 def get_worksheet(name):
     if spreadsheet is None:
         return None
@@ -114,8 +120,9 @@ def sugerir_precio(costo, categoria):
 def getToday():
     return date.today().isoformat()
 
-# ==================== ENDPOINTS ====================
-
+# ============================================================
+# ENDPOINTS
+# ============================================================
 @app.route('/')
 def serve_index():
     return send_from_directory('static', 'index.html')
