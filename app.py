@@ -548,7 +548,9 @@ def api_get_configuracion():
     try:
         hoja = get_worksheet('configuracion')
         if hoja is None:
-            # Si no existe la hoja, crearla
+            # Crear la hoja si no existe
+            hoja = spreadsheet.add_worksheet(title="configuracion", rows="100", cols="2")
+            hoja.update('A1:B1', [['clave', 'valor']])
             return jsonify({})
         registros = hoja.get_all_records()
         config = {}
@@ -572,13 +574,11 @@ def api_set_configuracion():
     try:
         hoja = get_worksheet('configuracion')
         if hoja is None:
-            # Crear la hoja si no existe
             hoja = spreadsheet.add_worksheet(title="configuracion", rows="100", cols="2")
             hoja.update('A1:B1', [['clave', 'valor']])
-        
+
         # Leer registros actuales
         registros = hoja.get_all_records()
-        # Crear un diccionario con las claves existentes
         existing = {}
         for i, r in enumerate(registros, start=2):
             clave = r.get('clave')
@@ -591,7 +591,7 @@ def api_set_configuracion():
                 hoja.update_cell(existing[clave], 2, valor)
             else:
                 hoja.append_row([clave, valor])
-        
+
         return jsonify({"mensaje": "Configuración guardada"})
     except Exception as e:
         print("Error en /api/configuracion POST:", e)

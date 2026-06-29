@@ -587,7 +587,6 @@ let boletaNum = 1;
 function parsePrecio(val) {
     if (!val) return 0;
     let str = String(val).trim().replace(/\s/g, '');
-    // Si contiene coma, reemplazar por punto (solo la última coma o si no hay punto)
     if (str.includes(',')) {
         let parts = str.split(',');
         if (parts.length > 2) {
