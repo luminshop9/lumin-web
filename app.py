@@ -285,7 +285,8 @@ def api_crear_producto():
         estado, margen, "unidad", proveedor,
         ahora, "web_user"
     ]
-    hoja_inv.append_row(fila, value_input_option="USER_ENTERED")
+    # USAR RAW para evitar interpretación regional de decimales
+    hoja_inv.append_row(fila, value_input_option="RAW")
     return jsonify({"mensaje": "Producto creado", "sku": sku, "precio_sugerido": precio_venta})
 
 @app.route('/api/actualizar-producto', methods=['PUT'])
@@ -303,12 +304,13 @@ def api_actualizar_producto():
     filas = hoja_inv.get_all_values()
     for i, fila in enumerate(filas):
         if fila and fila[0] == sku:
+            # Usar update con RAW para evitar interpretación regional
             if precio_venta > 0:
-                hoja_inv.update_cell(i+1, 10, precio_venta)
+                hoja_inv.update(f'J{i+1}', [[precio_venta]], value_input_option='RAW')
             if stock >= 0:
-                hoja_inv.update_cell(i+1, 11, stock)
+                hoja_inv.update(f'K{i+1}', [[stock]], value_input_option='RAW')
                 estado = "OK" if stock > 5 else "Bajo"
-                hoja_inv.update_cell(i+1, 13, estado)
+                hoja_inv.update(f'M{i+1}', [[estado]], value_input_option='RAW')
             return jsonify({"mensaje": "Producto actualizado"})
     return jsonify({"error": "Producto no encontrado"}), 404
 
@@ -404,7 +406,7 @@ def api_guardar_cliente():
             return jsonify({"error": "Cliente no encontrado"}), 404
         else:
             nuevo_id = str(int(datetime.now().timestamp() * 1000))
-            hoja.append_row([nuevo_id, nombre, telefono, email, getToday()])
+            hoja.append_row([nuevo_id, nombre, telefono, email, getToday()], value_input_option='RAW')
             return jsonify({"mensaje": "Cliente creado", "id": nuevo_id})
     except Exception as e:
         print("Error en /api/cliente:", e)
@@ -440,16 +442,16 @@ def api_anular_venta():
             if fila and fila[0] == sku:
                 stock_actual = parse_int(fila[10])
                 nuevo_stock = stock_actual + cantidad
-                hoja_inv.update_cell(i+1, 11, nuevo_stock)
+                hoja_inv.update(f'K{i+1}', [[nuevo_stock]], value_input_option='RAW')
                 estado = "OK" if nuevo_stock > 5 else "Bajo"
-                hoja_inv.update_cell(i+1, 13, estado)
+                hoja_inv.update(f'M{i+1}', [[estado]], value_input_option='RAW')
                 break
 
     hoja_mov = get_worksheet('movimientos')
     if hoja_mov is not None:
         hoja_mov.append_row([
             ahora_iso(), '', 'venta_anulada', 0, 0, 0, f'Boleta #{boleta_id}', 'web_user', razon
-        ])
+        ], value_input_option='RAW')
 
     return jsonify({"mensaje": "Venta anulada correctamente"})
 
@@ -506,7 +508,7 @@ def api_registrar_venta():
         filas = hoja_inv.get_all_values()
         for i, fila in enumerate(filas):
             if fila and fila[0] == sku:
-                hoja_inv.update_cell(i+1, 11, nuevo_stock)
+                hoja_inv.update(f'K{i+1}', [[nuevo_stock]], value_input_option='RAW')
                 break
 
         costo = parse_decimal(prod.get('Costo', 0))
@@ -514,34 +516,35 @@ def api_registrar_venta():
         ganancia_total += ganancia_unidad * cantidad
         subtotal += precio_real * cantidad
 
+        # Todas las inserciones con RAW
         hoja_ventas.append_row([
             now, id_boleta, sku, prod['Nombre_completo'],
             cantidad, precio_real, costo, ganancia_unidad, ganancia_unidad * cantidad, vendedor
-        ])
+        ], value_input_option='RAW')
         hoja_mov.append_row([
             now, sku, 'venta', cantidad, precio_real, cantidad * precio_real, id_boleta, vendedor, ''
-        ])
+        ], value_input_option='RAW')
         precio_sugerido = parse_decimal(prod.get('Precio_venta_actual', 0))
         diferencia = precio_real - precio_sugerido
         tipo_diferencia = 'extra' if diferencia > 0 else ('perdida' if diferencia < 0 else 'normal')
         hoja_boletas.append_row([
             id_boleta, now, cliente, '', sku, prod['Nombre_completo'], cantidad,
             precio_sugerido, precio_real, diferencia, tipo_diferencia, cantidad * precio_real, vendedor
-        ])
+        ], value_input_option='RAW')
         if diferencia > 0:
             hoja_extras.append_row([
                 now, id_boleta, sku, 'extra', diferencia * cantidad,
                 'Venta por encima del precio sugerido', diferencia * cantidad, 0, diferencia * cantidad
-            ])
+            ], value_input_option='RAW')
             hoja_ahorro.append_row([
                 now, id_boleta, sku, precio_sugerido, precio_real,
                 diferencia * cantidad, 'Venta por encima del precio sugerido', diferencia * cantidad
-            ])
+            ], value_input_option='RAW')
         elif diferencia < 0:
             hoja_extras.append_row([
                 now, id_boleta, sku, 'perdida', abs(diferencia * cantidad),
                 'Venta por debajo del precio sugerido', 0, abs(diferencia * cantidad), diferencia * cantidad
-            ])
+            ], value_input_option='RAW')
         resultados.append(f"✅ {cantidad} x {prod['Nombre_completo']} - {fmt_money(precio_real)}")
 
     return jsonify({
@@ -608,9 +611,9 @@ def api_set_configuracion():
         # Actualizar o insertar cada clave
         for clave, valor in data.items():
             if clave in existing:
-                hoja.update_cell(existing[clave], 2, valor)
+                hoja.update(f'B{existing[clave]}', [[valor]], value_input_option='RAW')
             else:
-                hoja.append_row([clave, valor])
+                hoja.append_row([clave, valor], value_input_option='RAW')
 
         return jsonify({"mensaje": "Configuración guardada"})
     except Exception as e:
