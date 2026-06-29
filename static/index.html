@@ -126,9 +126,9 @@
         .period-selector { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
         .period-btn { padding:4px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:100px; color:var(--text-secondary); font-size:0.7rem; cursor:pointer; transition:var(--transition); }
         .period-btn.active, .period-btn:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
-        /* ==== NUEVO: Carrito sticky ==== */
         .cart-sticky { position:sticky; bottom:0; background:var(--bg-card); padding:12px 0; z-index:10; border-top:1px solid var(--border); margin-top:12px; }
         @media(max-width:768px){ .sidebar{width:60px;} .sidebar-item span{display:none;} .sidebar-item{justify-content:center; padding:12px;} .sidebar-logo{font-size:1rem; padding:10px;} }
+        .logo-preview { max-width:80px; max-height:80px; border-radius:8px; border:1px solid var(--border); margin-top:8px; display:block; }
     </style>
 </head>
 <body data-theme="dark">
@@ -153,7 +153,6 @@
 
 <!-- ========== APP ========== -->
 <div id="mainApp" style="display:none;">
-    <!-- Sidebar -->
     <aside class="sidebar">
         <div class="sidebar-logo">LUMIN</div>
         <nav class="sidebar-nav">
@@ -171,7 +170,6 @@
         </div>
     </aside>
 
-    <!-- Main -->
     <main class="main">
         <div class="container">
 
@@ -227,7 +225,7 @@
                     <div class="empty-state" id="ventasEmpty" style="display:none;"><i class="fas fa-search"></i><h3>No hay productos</h3></div>
                 </div>
 
-                <!-- ======== CARRITO STICKY (nuevo) ======== -->
+                <!-- ======== CARRITO STICKY ======== -->
                 <div class="cart-sticky">
                     <div class="card" style="margin-bottom:0;">
                         <div class="card-header">
@@ -363,7 +361,15 @@
                     <div class="form-group"><label class="form-label">RUC</label><input type="text" class="form-input" id="tiendaRUC" value="20123456789"></div>
                     <div class="form-group"><label class="form-label">Dirección</label><input type="text" class="form-input" id="tiendaDireccion" value="Av. Principal 123"></div>
                     <div class="form-group"><label class="form-label">Teléfono</label><input type="text" class="form-input" id="tiendaTelefono" value="987654321"></div>
-                    <div class="form-group"><label class="form-label">Logo URL</label><input type="text" class="form-input" id="tiendaLogo" value=""></div>
+                    
+                    <!-- ======== NUEVO: Subir logo desde archivo ======== -->
+                    <div class="form-group">
+                        <label class="form-label">Logo de la Tienda</label>
+                        <input type="file" class="form-input" id="logoFileInput" accept="image/*" onchange="uploadLogo(event)">
+                        <img id="logoPreview" class="logo-preview" style="display:none;" alt="Logo preview">
+                        <input type="hidden" id="tiendaLogo" value="">
+                    </div>
+
                     <div class="form-group"><label class="form-label">Próxima Boleta</label><input type="number" class="form-input" id="tiendaBoleta" value="1"></div>
                     <div class="form-group"><label class="form-label">Meta Diaria (S/)</label><input type="number" class="form-input" id="tiendaMeta" value="500"></div>
                     <button class="btn btn-primary btn-block" onclick="guardarTienda()"><i class="fas fa-save"></i> Guardar</button>
@@ -552,8 +558,18 @@ let boletaNum = 1;
 function parsePrecio(val) {
     if (!val) return 0;
     let str = String(val).trim().replace(/\s/g, '');
-    if (str.includes(',') && str.includes('.')) str = str.replace(/,/g, '');
-    else if (str.includes(',')) str = str.replace(/,/g, '.');
+    // Si el string contiene coma y punto, o solo coma, normalizar a punto decimal
+    if (str.includes(',') && str.includes('.')) {
+        // Si la coma está después del punto, es separador de miles (ej: 1,234.56) -> quitar comas
+        // Si el punto está después de la coma, es decimal (ej: 1.234,56) -> reemplazar coma por punto y quitar punto de miles
+        if (str.lastIndexOf(',') > str.lastIndexOf('.')) {
+            str = str.replace(/\./g, '').replace(',', '.');
+        } else {
+            str = str.replace(/,/g, '');
+        }
+    } else if (str.includes(',')) {
+        str = str.replace(/,/g, '.');
+    }
     return parseFloat(str) || 0;
 }
 function formatMoney(v) { return 'S/ ' + parsePrecio(v).toFixed(2); }
@@ -631,7 +647,7 @@ async function fetchData() {
         movements = await movRes.json();
         clients = await clientRes.json();
         boletas = await boletasRes.json();
-        await loadStoreConfig(); // <-- cargar configuración del servidor
+        await loadStoreConfig();
         refreshAll();
     } catch(e) {
         showToast('Error al cargar datos. Verifica el servidor.', 'error');
@@ -643,7 +659,7 @@ async function fetchData() {
         movements = [];
         clients = [];
         boletas = [];
-        loadStoreConfig(); // intentar cargar configuración aunque falle el resto
+        loadStoreConfig();
         refreshAll();
     }
 }
@@ -1182,7 +1198,7 @@ function refreshRentabilidad() {
 }
 
 // ================================================================
-// CONFIGURACIÓN PERSISTENTE (nuevas funciones)
+// CONFIGURACIÓN PERSISTENTE
 // ================================================================
 async function loadStoreConfig() {
     try {
@@ -1199,7 +1215,6 @@ async function loadStoreConfig() {
                     meta: parsePrecio(config.meta_diaria) || 500
                 };
                 boletaNum = parseInt(config.boleta_num) || 1;
-                // Actualizar campos del formulario
                 document.getElementById('tiendaNombre').value = storeConfig.nombre;
                 document.getElementById('tiendaRUC').value = storeConfig.ruc;
                 document.getElementById('tiendaDireccion').value = storeConfig.direccion;
@@ -1207,11 +1222,19 @@ async function loadStoreConfig() {
                 document.getElementById('tiendaLogo').value = storeConfig.logo || '';
                 document.getElementById('tiendaBoleta').value = boletaNum;
                 document.getElementById('tiendaMeta').value = storeConfig.meta;
+                // Mostrar preview del logo
+                const preview = document.getElementById('logoPreview');
+                if (storeConfig.logo) {
+                    preview.src = storeConfig.logo;
+                    preview.style.display = 'block';
+                } else {
+                    preview.style.display = 'none';
+                }
                 return;
             }
         }
     } catch(e) {}
-    // Fallback a localStorage si falla el servidor
+    // Fallback a localStorage
     const saved = localStorage.getItem('lumin_storeConfig');
     if (saved) {
         try {
@@ -1226,6 +1249,34 @@ async function loadStoreConfig() {
     document.getElementById('tiendaLogo').value = storeConfig.logo || '';
     document.getElementById('tiendaBoleta').value = boletaNum;
     document.getElementById('tiendaMeta').value = storeConfig.meta || 500;
+    const preview = document.getElementById('logoPreview');
+    if (storeConfig.logo) {
+        preview.src = storeConfig.logo;
+        preview.style.display = 'block';
+    } else {
+        preview.style.display = 'none';
+    }
+}
+
+// ======== SUBIR LOGO DESDE ARCHIVO ========
+function uploadLogo(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    // Limitar tamaño (100KB)
+    if (file.size > 100 * 1024) {
+        showToast('La imagen es muy grande. Máximo 100KB.', 'error');
+        event.target.value = '';
+        return;
+    }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const base64 = e.target.result;
+        document.getElementById('tiendaLogo').value = base64;
+        document.getElementById('logoPreview').src = base64;
+        document.getElementById('logoPreview').style.display = 'block';
+        showToast('Logo cargado. Guarda la configuración para guardarlo.', 'success');
+    };
+    reader.readAsDataURL(file);
 }
 
 async function guardarTienda() {
@@ -1238,7 +1289,6 @@ async function guardarTienda() {
         meta_diaria: parsePrecio(document.getElementById('tiendaMeta').value),
         boleta_num: parseInt(document.getElementById('tiendaBoleta').value) || 1
     };
-    // Guardar en el servidor
     try {
         const resp = await fetch('/api/configuracion', {
             method: 'POST',
@@ -1247,7 +1297,6 @@ async function guardarTienda() {
         });
         if (resp.ok) {
             showToast('Configuración guardada en el servidor', 'success');
-            // Actualizar variables locales
             storeConfig = {
                 nombre: config.nombre,
                 ruc: config.ruc,
@@ -1257,7 +1306,6 @@ async function guardarTienda() {
                 meta: config.meta_diaria
             };
             boletaNum = config.boleta_num;
-            // También guardar en localStorage como respaldo
             localStorage.setItem('lumin_storeConfig', JSON.stringify(storeConfig));
             localStorage.setItem('lumin_boletaNum', String(boletaNum));
         } else {
@@ -1265,7 +1313,6 @@ async function guardarTienda() {
         }
     } catch(e) {
         showToast('Error de conexión, guardado en local', 'warning');
-        // Guardar localmente como fallback
         storeConfig = {
             nombre: config.nombre,
             ruc: config.ruc,

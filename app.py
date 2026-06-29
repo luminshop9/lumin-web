@@ -538,7 +538,7 @@ def api_registrar_venta():
     })
 
 # ============================================================
-# ENDPOINTS DE CONFIGURACIÓN (persistente en Google Sheets)
+# ENDPOINTS DE CONFIGURACIÓN
 # ============================================================
 @app.route('/api/configuracion', methods=['GET'])
 def api_get_configuracion():
@@ -571,7 +571,6 @@ def api_set_configuracion():
         hoja = get_worksheet('configuracion')
         if hoja is None:
             return jsonify({"error": "Hoja configuracion no encontrada"}), 404
-        # Limpiar y guardar
         filas = [[clave, valor] for clave, valor in data.items()]
         hoja.clear()
         if filas:
