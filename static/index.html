@@ -2,10 +2,11 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>LUMIN - Gestión de Inventario</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
     <style>
         /* ======== ESTILOS COMPACTOS Y MODERNOS ======== */
         :root {
@@ -34,14 +35,28 @@
             --safe-bottom: env(safe-area-inset-bottom,0px);
         }
         [data-theme="light"] {
-            --bg: #F8F6FF; --bg-card: #FFFFFF; --bg-card-hover: #F0EDFF; --bg-input: #F0EDFF;
-            --text-primary: #1A1333; --text-secondary: #4A4060; --text-muted: #8B85A0; --border: #E0D8F0;
-            --shadow: rgba(139,92,246,0.08); --shadow-lg: rgba(139,92,246,0.15);
+            --bg: #F8F6FF;
+            --bg-card: #FFFFFF;
+            --bg-card-hover: #F0EDFF;
+            --bg-input: #F0EDFF;
+            --text-primary: #1A1333;
+            --text-secondary: #4A4060;
+            --text-muted: #8B85A0;
+            --border: #E0D8F0;
+            --shadow: rgba(139,92,246,0.08);
+            --shadow-lg: rgba(139,92,246,0.15);
         }
         [data-theme="amoled"] {
-            --bg: #000000; --bg-card: #0A0A0A; --bg-card-hover: #141414; --bg-input: #141414;
-            --text-primary: #FFFFFF; --text-secondary: #A0A0A0; --text-muted: #666666; --border: #1A1A1A;
-            --shadow: rgba(139,92,246,0.2); --shadow-lg: rgba(139,92,246,0.3);
+            --bg: #000000;
+            --bg-card: #0A0A0A;
+            --bg-card-hover: #141414;
+            --bg-input: #141414;
+            --text-primary: #FFFFFF;
+            --text-secondary: #A0A0A0;
+            --text-muted: #666666;
+            --border: #1A1A1A;
+            --shadow: rgba(139,92,246,0.2);
+            --shadow-lg: rgba(139,92,246,0.3);
         }
         * { margin:0; padding:0; box-sizing:border-box; font-family:var(--font); }
         body { background:var(--bg); color:var(--text-primary); min-height:100vh; display:flex; }
@@ -126,9 +141,7 @@
         .period-selector { display:flex; gap:6px; margin-bottom:12px; flex-wrap:wrap; }
         .period-btn { padding:4px 12px; background:var(--bg-card); border:1px solid var(--border); border-radius:100px; color:var(--text-secondary); font-size:0.7rem; cursor:pointer; transition:var(--transition); }
         .period-btn.active, .period-btn:hover { background:var(--primary); color:#fff; border-color:var(--primary); }
-        /* ==== NUEVO: Carrito sticky ==== */
         .cart-sticky { position:sticky; bottom:0; background:var(--bg-card); padding:12px 0; z-index:10; border-top:1px solid var(--border); margin-top:12px; }
-        /* ==== Input de archivo para logo ==== */
         .file-input-wrapper { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
         .file-input-wrapper input[type="file"] { flex:1; padding:6px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-xs); color:var(--text-primary); font-size:0.8rem; min-width:150px; }
         .file-input-wrapper button { padding:6px 12px; }
@@ -576,22 +589,19 @@ function parsePrecio(val) {
     let str = String(val).trim().replace(/\s/g, '');
     // Si contiene coma, reemplazar por punto (solo la última coma o si no hay punto)
     if (str.includes(',')) {
-        // Si hay más de una coma, eliminar todas las comas excepto la última
         let parts = str.split(',');
         if (parts.length > 2) {
-            str = parts.join(''); // eliminar todas las comas
+            str = parts.join('');
         } else {
             str = str.replace(',', '.');
         }
     }
-    // Asegurar que solo haya un punto decimal
     let dotParts = str.split('.');
     if (dotParts.length > 2) {
         str = dotParts[0] + '.' + dotParts.slice(1).join('');
     }
     let num = parseFloat(str);
     if (isNaN(num)) return 0;
-    // Redondear a 2 decimales para evitar errores de precisión
     return Math.round(num * 100) / 100;
 }
 
@@ -1240,10 +1250,6 @@ function subirLogo() {
     const reader = new FileReader();
     reader.onload = function(e) {
         const dataUrl = e.target.result;
-        // Verificar tamaño (máximo 200KB para evitar problemas en el sheet)
-        if (dataUrl.length > 200000) {
-            showToast('La imagen es demasiado grande. Usa una URL externa.', 'warning');
-        }
         document.getElementById('tiendaLogo').value = dataUrl;
         document.getElementById('logoPreview').src = dataUrl;
         document.getElementById('logoPreview').style.display = 'block';
@@ -1264,7 +1270,7 @@ function eliminarLogo() {
 
 function actualizarPreviewLogo(url) {
     const preview = document.getElementById('logoPreview');
-    if (url && url.startsWith('data:image') || url.startsWith('http')) {
+    if (url && (url.startsWith('data:image') || url.startsWith('http'))) {
         preview.src = url;
         preview.style.display = 'block';
         document.getElementById('logoStatus').textContent = 'Logo cargado';
@@ -1275,7 +1281,7 @@ function actualizarPreviewLogo(url) {
 }
 
 // ================================================================
-// CONFIGURACIÓN PERSISTENTE
+// CONFIGURACIÓN PERSISTENTE (CORREGIDA)
 // ================================================================
 async function loadStoreConfig() {
     try {
@@ -1292,7 +1298,6 @@ async function loadStoreConfig() {
                     meta: parsePrecio(config.meta_diaria) || 500
                 };
                 boletaNum = parseInt(config.boleta_num) || 1;
-                // Actualizar campos
                 document.getElementById('tiendaNombre').value = storeConfig.nombre;
                 document.getElementById('tiendaRUC').value = storeConfig.ruc;
                 document.getElementById('tiendaDireccion').value = storeConfig.direccion;
@@ -1333,10 +1338,6 @@ async function guardarTienda() {
         meta_diaria: parsePrecio(document.getElementById('tiendaMeta').value),
         boleta_num: parseInt(document.getElementById('tiendaBoleta').value) || 1
     };
-    // Si el logo es Base64 y es muy largo, advertir
-    if (config.logo && config.logo.startsWith('data:image') && config.logo.length > 200000) {
-        showToast('El logo es muy grande. Se guardará pero podría no mostrarse correctamente.', 'warning');
-    }
     try {
         const resp = await fetch('/api/configuracion', {
             method: 'POST',

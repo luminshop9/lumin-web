@@ -58,10 +58,11 @@ def get_worksheet(name):
     return spreadsheet.worksheet(name)
 
 def parse_decimal(val):
+    """Convierte a float con 2 decimales, manejando comas y puntos."""
     if val is None or val == "":
         return 0.0
     if isinstance(val, (int, float)):
-        return float(val)
+        return round(float(val), 2)
     s = str(val).strip()
     s = re.sub(r'[^\d,.]', '', s)
     if ',' in s and '.' in s:
@@ -72,7 +73,7 @@ def parse_decimal(val):
     elif ',' in s:
         s = s.replace(',', '.')
     try:
-        return float(s)
+        return round(float(s), 2)
     except ValueError:
         return 0.0
 
@@ -538,7 +539,7 @@ def api_registrar_venta():
     })
 
 # ============================================================
-# ENDPOINTS DE CONFIGURACIÓN
+# ENDPOINTS DE CONFIGURACIÓN (CORREGIDOS)
 # ============================================================
 @app.route('/api/configuracion', methods=['GET'])
 def api_get_configuracion():
@@ -547,6 +548,7 @@ def api_get_configuracion():
     try:
         hoja = get_worksheet('configuracion')
         if hoja is None:
+            # Si no existe la hoja, crearla
             return jsonify({})
         registros = hoja.get_all_records()
         config = {}
@@ -570,11 +572,26 @@ def api_set_configuracion():
     try:
         hoja = get_worksheet('configuracion')
         if hoja is None:
-            return jsonify({"error": "Hoja configuracion no encontrada"}), 404
-        filas = [[clave, valor] for clave, valor in data.items()]
-        hoja.clear()
-        if filas:
-            hoja.append_rows([['clave', 'valor']] + filas, value_input_option="USER_ENTERED")
+            # Crear la hoja si no existe
+            hoja = spreadsheet.add_worksheet(title="configuracion", rows="100", cols="2")
+            hoja.update('A1:B1', [['clave', 'valor']])
+        
+        # Leer registros actuales
+        registros = hoja.get_all_records()
+        # Crear un diccionario con las claves existentes
+        existing = {}
+        for i, r in enumerate(registros, start=2):
+            clave = r.get('clave')
+            if clave:
+                existing[clave] = i
+
+        # Actualizar o insertar cada clave
+        for clave, valor in data.items():
+            if clave in existing:
+                hoja.update_cell(existing[clave], 2, valor)
+            else:
+                hoja.append_row([clave, valor])
+        
         return jsonify({"mensaje": "Configuración guardada"})
     except Exception as e:
         print("Error en /api/configuracion POST:", e)
