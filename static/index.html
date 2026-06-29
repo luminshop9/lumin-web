@@ -129,10 +129,11 @@
         /* ==== NUEVO: Carrito sticky ==== */
         .cart-sticky { position:sticky; bottom:0; background:var(--bg-card); padding:12px 0; z-index:10; border-top:1px solid var(--border); margin-top:12px; }
         /* ==== Input de archivo para logo ==== */
-        .file-input-wrapper { display:flex; align-items:center; gap:10px; }
-        .file-input-wrapper input[type="file"] { flex:1; padding:6px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-xs); color:var(--text-primary); font-size:0.8rem; }
+        .file-input-wrapper { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+        .file-input-wrapper input[type="file"] { flex:1; padding:6px; background:var(--bg-input); border:1px solid var(--border); border-radius:var(--radius-xs); color:var(--text-primary); font-size:0.8rem; min-width:150px; }
         .file-input-wrapper button { padding:6px 12px; }
-        .logo-preview { max-width:80px; max-height:80px; border-radius:8px; border:1px solid var(--border); margin-top:8px; }
+        .logo-preview { max-width:80px; max-height:80px; border-radius:8px; border:1px solid var(--border); margin-top:8px; object-fit:contain; background:white; }
+        .logo-preview-container { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-top:8px; }
         @media(max-width:768px){ .sidebar{width:60px;} .sidebar-item span{display:none;} .sidebar-item{justify-content:center; padding:12px;} .sidebar-logo{font-size:1rem; padding:10px;} }
     </style>
 </head>
@@ -247,7 +248,7 @@
                         <div class="cart-totals" id="cartTotals" style="display:none;">
                             <div class="cart-total-row"><span>Subtotal</span><span id="cartSubtotal">S/ 0.00</span></div>
                             <div class="cart-total-row" style="font-size:0.7rem;color:var(--text-muted);">IGV (18%) incluido</div>
-                            <div class="cart-total-row total"><span>Total</span><input type="text" id="cartTotalInput" value="0.00" style="width:100px;padding:4px 8px;background:var(--bg-input);border:1px solid var(--primary);border-radius:var(--radius-xs);color:var(--primary);font-weight:700;text-align:right;outline:none;" onblur="this.value = parsePrecio(this.value).toFixed(2)"></div>
+                            <div class="cart-total-row total"><span>Total</span><input type="text" id="cartTotalInput" value="0.00" style="width:100px;padding:4px 8px;background:var(--bg-input);border:1px solid var(--primary);border-radius:var(--radius-xs);color:var(--primary);font-weight:700;text-align:right;outline:none;" onblur="this.value = formatNumero(this.value)"></div>
                             <div style="display:flex;gap:8px;margin-top:12px;">
                                 <button class="btn btn-secondary btn-sm" onclick="clearCart()"><i class="fas fa-trash"></i> Limpiar</button>
                                 <button class="btn btn-success btn-sm" onclick="confirmarVenta()"><i class="fas fa-check"></i> Confirmar</button>
@@ -368,12 +369,17 @@
                     <div class="form-group"><label class="form-label">RUC</label><input type="text" class="form-input" id="tiendaRUC" value="20123456789"></div>
                     <div class="form-group"><label class="form-label">Dirección</label><input type="text" class="form-input" id="tiendaDireccion" value="Av. Principal 123"></div>
                     <div class="form-group"><label class="form-label">Teléfono</label><input type="text" class="form-input" id="tiendaTelefono" value="987654321"></div>
-                    <div class="form-group"><label class="form-label">Logo URL / Subir logo</label>
+                    <div class="form-group">
+                        <label class="form-label">Logo URL / Subir logo</label>
                         <div class="file-input-wrapper">
                             <input type="file" id="logoFileInput" accept="image/*" onchange="subirLogo()">
                             <button class="btn btn-secondary btn-sm" onclick="document.getElementById('logoFileInput').click()"><i class="fas fa-upload"></i> Subir</button>
+                            <button class="btn btn-danger btn-sm" onclick="eliminarLogo()"><i class="fas fa-trash"></i> Eliminar</button>
                         </div>
-                        <div id="logoPreviewContainer" style="margin-top:8px;"></div>
+                        <div class="logo-preview-container" id="logoPreviewContainer">
+                            <img id="logoPreview" class="logo-preview" style="display:none;" alt="Logo">
+                            <span id="logoStatus" style="font-size:0.7rem;color:var(--text-muted);"></span>
+                        </div>
                         <input type="text" class="form-input" id="tiendaLogo" placeholder="O pega una URL directa" value="" style="margin-top:8px;">
                     </div>
                     <div class="form-group"><label class="form-label">Próxima Boleta</label><input type="number" class="form-input" id="tiendaBoleta" value="1"></div>
@@ -422,10 +428,10 @@
             </div>
             <div class="form-row">
                 <div class="form-group"><label class="form-label">Costo (S/) *</label>
-                    <input type="text" class="form-input" id="prodCosto" placeholder="0.00" oninput="sugerirPrecio()" onblur="this.value = parsePrecio(this.value).toFixed(2)">
+                    <input type="text" class="form-input" id="prodCosto" placeholder="0.00" oninput="sugerirPrecio()" onblur="this.value = formatNumero(this.value)">
                 </div>
                 <div class="form-group"><label class="form-label">Precio Venta (S/)</label>
-                    <input type="text" class="form-input" id="prodPrecio" placeholder="0.00" onblur="this.value = parsePrecio(this.value).toFixed(2)">
+                    <input type="text" class="form-input" id="prodPrecio" placeholder="0.00" onblur="this.value = formatNumero(this.value)">
                 </div>
             </div>
             <div class="form-row">
@@ -472,7 +478,7 @@
         <div class="modal-body">
             <div class="receipt" id="boletaContent">
                 <div class="receipt-header">
-                    <img src="" class="receipt-logo" id="boletaLogo" style="width:50px;height:50px;border-radius:50%;object-fit:cover;border:2px solid var(--primary);">
+                    <img src="" class="receipt-logo" id="boletaLogo" style="width:50px;height:50px;border-radius:50%;object-fit:contain;border:2px solid var(--primary);background:white;">
                     <div class="receipt-store" id="boletaTienda">Mi Tienda</div>
                     <div class="receipt-info" id="boletaRUC">RUC: 20123456789</div>
                     <div class="receipt-info" id="boletaDireccion">Av. Principal 123</div>
@@ -563,28 +569,42 @@ let storeConfig = {
 let boletaNum = 1;
 
 // ================================================================
-// UTILIDADES (con parseo mejorado)
+// UTILIDADES - PARSEO DE PRECIOS (CORREGIDO)
 // ================================================================
 function parsePrecio(val) {
     if (!val) return 0;
     let str = String(val).trim().replace(/\s/g, '');
-    // Reemplazar coma por punto SOLO si es la última coma o si no hay punto
+    // Si contiene coma, reemplazar por punto (solo la última coma o si no hay punto)
     if (str.includes(',')) {
-        // Si hay más de una coma, eliminar todas y dejar una
-        if (str.split(',').length > 2) {
-            str = str.replace(/,/g, '');
+        // Si hay más de una coma, eliminar todas las comas excepto la última
+        let parts = str.split(',');
+        if (parts.length > 2) {
+            str = parts.join(''); // eliminar todas las comas
         } else {
-            str = str.replace(/,/g, '.');
+            str = str.replace(',', '.');
         }
     }
     // Asegurar que solo haya un punto decimal
-    let parts = str.split('.');
-    if (parts.length > 2) {
-        str = parts[0] + '.' + parts.slice(1).join('');
+    let dotParts = str.split('.');
+    if (dotParts.length > 2) {
+        str = dotParts[0] + '.' + dotParts.slice(1).join('');
     }
-    return parseFloat(str) || 0;
+    let num = parseFloat(str);
+    if (isNaN(num)) return 0;
+    // Redondear a 2 decimales para evitar errores de precisión
+    return Math.round(num * 100) / 100;
 }
-function formatMoney(v) { return 'S/ ' + parsePrecio(v).toFixed(2); }
+
+function formatNumero(val) {
+    let num = parsePrecio(val);
+    return num.toFixed(2);
+}
+
+function formatMoney(v) {
+    let num = parsePrecio(v);
+    return 'S/ ' + num.toFixed(2);
+}
+
 function getToday() { return new Date().toISOString().split('T')[0]; }
 function getNow() { return new Date().toLocaleString('es-PE'); }
 
@@ -659,11 +679,10 @@ async function fetchData() {
         movements = await movRes.json();
         clients = await clientRes.json();
         boletas = await boletasRes.json();
-        await loadStoreConfig(); // cargar configuración del servidor
+        await loadStoreConfig();
         refreshAll();
     } catch(e) {
         showToast('Error al cargar datos. Verifica el servidor.', 'error');
-        // Datos demo
         products = [
             { SKU: 'DEMO-001', Nombre_completo: 'Producto Demo 1', Categoria: 'Electrónica', Costo: 10, Precio_venta_actual: 20, Stock_actual: 15, Stock_minimo: 5, Proveedor: 'Demo' },
             { SKU: 'DEMO-002', Nombre_completo: 'Producto Demo 2', Categoria: 'Ropa', Costo: 8, Precio_venta_actual: 18, Stock_actual: 3, Stock_minimo: 5, Proveedor: 'Demo' }
@@ -671,7 +690,7 @@ async function fetchData() {
         movements = [];
         clients = [];
         boletas = [];
-        loadStoreConfig(); // intentar cargar configuración aunque falle el resto
+        loadStoreConfig();
         refreshAll();
     }
 }
@@ -882,7 +901,6 @@ async function confirmarVenta() {
         document.getElementById('cartCliente').value = '';
         renderCart();
         verBoleta(data.boleta_id);
-        // Forzar actualización de cierre y boletas
         refreshCierre();
         renderBoletas();
     } catch(e) { showToast('Error al registrar venta', 'error'); }
@@ -1213,7 +1231,7 @@ function refreshRentabilidad() {
 }
 
 // ================================================================
-// SUBIR LOGO DESDE DISPOSITIVO
+// LOGO: SUBIR, ELIMINAR, PREVISUALIZAR
 // ================================================================
 function subirLogo() {
     const input = document.getElementById('logoFileInput');
@@ -1222,13 +1240,38 @@ function subirLogo() {
     const reader = new FileReader();
     reader.onload = function(e) {
         const dataUrl = e.target.result;
+        // Verificar tamaño (máximo 200KB para evitar problemas en el sheet)
+        if (dataUrl.length > 200000) {
+            showToast('La imagen es demasiado grande. Usa una URL externa.', 'warning');
+        }
         document.getElementById('tiendaLogo').value = dataUrl;
-        // Mostrar preview
-        const previewContainer = document.getElementById('logoPreviewContainer');
-        previewContainer.innerHTML = '<img src="'+dataUrl+'" class="logo-preview" alt="Logo">';
+        document.getElementById('logoPreview').src = dataUrl;
+        document.getElementById('logoPreview').style.display = 'block';
+        document.getElementById('logoStatus').textContent = 'Logo cargado (Base64). Guarda la configuración.';
         showToast('Logo cargado. Guarda la configuración.', 'success');
     };
     reader.readAsDataURL(file);
+}
+
+function eliminarLogo() {
+    document.getElementById('tiendaLogo').value = '';
+    document.getElementById('logoPreview').style.display = 'none';
+    document.getElementById('logoPreview').src = '';
+    document.getElementById('logoStatus').textContent = 'Logo eliminado';
+    document.getElementById('logoFileInput').value = '';
+    showToast('Logo eliminado', 'info');
+}
+
+function actualizarPreviewLogo(url) {
+    const preview = document.getElementById('logoPreview');
+    if (url && url.startsWith('data:image') || url.startsWith('http')) {
+        preview.src = url;
+        preview.style.display = 'block';
+        document.getElementById('logoStatus').textContent = 'Logo cargado';
+    } else {
+        preview.style.display = 'none';
+        document.getElementById('logoStatus').textContent = '';
+    }
 }
 
 // ================================================================
@@ -1249,7 +1292,7 @@ async function loadStoreConfig() {
                     meta: parsePrecio(config.meta_diaria) || 500
                 };
                 boletaNum = parseInt(config.boleta_num) || 1;
-                // Actualizar campos del formulario
+                // Actualizar campos
                 document.getElementById('tiendaNombre').value = storeConfig.nombre;
                 document.getElementById('tiendaRUC').value = storeConfig.ruc;
                 document.getElementById('tiendaDireccion').value = storeConfig.direccion;
@@ -1257,10 +1300,7 @@ async function loadStoreConfig() {
                 document.getElementById('tiendaLogo').value = storeConfig.logo || '';
                 document.getElementById('tiendaBoleta').value = boletaNum;
                 document.getElementById('tiendaMeta').value = storeConfig.meta;
-                // Mostrar preview del logo
-                if (storeConfig.logo) {
-                    document.getElementById('logoPreviewContainer').innerHTML = '<img src="'+storeConfig.logo+'" class="logo-preview" alt="Logo">';
-                }
+                actualizarPreviewLogo(storeConfig.logo);
                 return;
             }
         }
@@ -1280,9 +1320,7 @@ async function loadStoreConfig() {
     document.getElementById('tiendaLogo').value = storeConfig.logo || '';
     document.getElementById('tiendaBoleta').value = boletaNum;
     document.getElementById('tiendaMeta').value = storeConfig.meta || 500;
-    if (storeConfig.logo) {
-        document.getElementById('logoPreviewContainer').innerHTML = '<img src="'+storeConfig.logo+'" class="logo-preview" alt="Logo">';
-    }
+    actualizarPreviewLogo(storeConfig.logo);
 }
 
 async function guardarTienda() {
@@ -1295,6 +1333,10 @@ async function guardarTienda() {
         meta_diaria: parsePrecio(document.getElementById('tiendaMeta').value),
         boleta_num: parseInt(document.getElementById('tiendaBoleta').value) || 1
     };
+    // Si el logo es Base64 y es muy largo, advertir
+    if (config.logo && config.logo.startsWith('data:image') && config.logo.length > 200000) {
+        showToast('El logo es muy grande. Se guardará pero podría no mostrarse correctamente.', 'warning');
+    }
     try {
         const resp = await fetch('/api/configuracion', {
             method: 'POST',
@@ -1314,9 +1356,7 @@ async function guardarTienda() {
             boletaNum = config.boleta_num;
             localStorage.setItem('lumin_storeConfig', JSON.stringify(storeConfig));
             localStorage.setItem('lumin_boletaNum', String(boletaNum));
-            if (config.logo) {
-                document.getElementById('logoPreviewContainer').innerHTML = '<img src="'+config.logo+'" class="logo-preview" alt="Logo">';
-            }
+            actualizarPreviewLogo(config.logo);
         } else {
             showToast('Error al guardar en el servidor', 'error');
         }
@@ -1334,6 +1374,7 @@ async function guardarTienda() {
         localStorage.setItem('lumin_storeConfig', JSON.stringify(storeConfig));
         localStorage.setItem('lumin_boletaNum', String(boletaNum));
         showToast('Configuración guardada localmente', 'success');
+        actualizarPreviewLogo(config.logo);
     }
 }
 
