@@ -50,7 +50,7 @@ except Exception as e:
     autenticado = False
 
 # ============================================================
-# FUNCIONES DE UTILIDAD
+# FUNCIONES DE UTILIDAD (CORREGIDAS)
 # ============================================================
 def get_worksheet(name):
     if spreadsheet is None:
@@ -58,20 +58,34 @@ def get_worksheet(name):
     return spreadsheet.worksheet(name)
 
 def parse_decimal(val):
-    """Convierte a float con 2 decimales, manejando comas y puntos."""
+    """
+    Convierte a float con 2 decimales, manejando comas, puntos y símbolos de moneda.
+    Versión robusta que evita multiplicaciones incorrectas.
+    """
     if val is None or val == "":
         return 0.0
     if isinstance(val, (int, float)):
         return round(float(val), 2)
+
     s = str(val).strip()
+    # Elimina todo lo que no sea dígito, coma o punto (incluye símbolos como S/ , $)
     s = re.sub(r'[^\d,.]', '', s)
+
+    # Si hay una coma y un punto, decidir cuál es el separador decimal
     if ',' in s and '.' in s:
+        # Si la coma está después del punto, usamos la coma como decimal
         if s.rfind(',') > s.rfind('.'):
             s = s.replace('.', '').replace(',', '.')
         else:
             s = s.replace(',', '')
     elif ',' in s:
         s = s.replace(',', '.')
+
+    # Si quedan varios puntos, dejar solo el último como decimal
+    if s.count('.') > 1:
+        parts = s.split('.')
+        s = parts[0] + '.' + ''.join(parts[1:])
+
     try:
         return round(float(s), 2)
     except ValueError:
@@ -571,6 +585,12 @@ def api_set_configuracion():
     data = request.get_json()
     if not data:
         return jsonify({"error": "Datos inválidos"}), 400
+
+    # Validar tamaño del logo (Base64)
+    logo = data.get('logo', '')
+    if len(logo) > 30000:
+        return jsonify({"error": "El logo es demasiado grande (máx 30KB en Base64)"}), 400
+
     try:
         hoja = get_worksheet('configuracion')
         if hoja is None:
