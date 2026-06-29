@@ -285,7 +285,7 @@ def api_crear_producto():
         estado, margen, "unidad", proveedor,
         ahora, "web_user"
     ]
-    # USAR RAW para evitar interpretación regional de decimales
+    # --- CORRECCIÓN: usar RAW para evitar interpretación de locale ---
     hoja_inv.append_row(fila, value_input_option="RAW")
     return jsonify({"mensaje": "Producto creado", "sku": sku, "precio_sugerido": precio_venta})
 
@@ -304,7 +304,7 @@ def api_actualizar_producto():
     filas = hoja_inv.get_all_values()
     for i, fila in enumerate(filas):
         if fila and fila[0] == sku:
-            # Usar update con RAW para evitar interpretación regional
+            # --- CORRECCIÓN: usar update con RAW ---
             if precio_venta > 0:
                 hoja_inv.update(f'J{i+1}', [[precio_venta]], value_input_option='RAW')
             if stock >= 0:
@@ -399,9 +399,9 @@ def api_guardar_cliente():
             registros = hoja.get_all_records()
             for i, r in enumerate(registros, start=2):
                 if str(r.get('id')) == str(cliente_id):
-                    hoja.update_cell(i, 2, nombre)
-                    hoja.update_cell(i, 3, telefono)
-                    hoja.update_cell(i, 4, email)
+                    hoja.update(f'B{i}', [[nombre]], value_input_option='RAW')
+                    hoja.update(f'C{i}', [[telefono]], value_input_option='RAW')
+                    hoja.update(f'D{i}', [[email]], value_input_option='RAW')
                     return jsonify({"mensaje": "Cliente actualizado"})
             return jsonify({"error": "Cliente no encontrado"}), 404
         else:
@@ -516,7 +516,6 @@ def api_registrar_venta():
         ganancia_total += ganancia_unidad * cantidad
         subtotal += precio_real * cantidad
 
-        # Todas las inserciones con RAW
         hoja_ventas.append_row([
             now, id_boleta, sku, prod['Nombre_completo'],
             cantidad, precio_real, costo, ganancia_unidad, ganancia_unidad * cantidad, vendedor
@@ -608,7 +607,7 @@ def api_set_configuracion():
             if clave:
                 existing[clave] = i
 
-        # Actualizar o insertar cada clave
+        # Actualizar o insertar cada clave usando RAW
         for clave, valor in data.items():
             if clave in existing:
                 hoja.update(f'B{existing[clave]}', [[valor]], value_input_option='RAW')
